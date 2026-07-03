@@ -7,6 +7,8 @@
 Калькулятор — Google Таблиця, весь розрахунок і кнопки (КП, Розкладка панелей, Виробництво) працюють тільки там:
 
 https://docs.google.com/spreadsheets/d/1fVpkQ1hISLlMFAyUjumawSkas6a85gnFciHO2rpJr7U/edit
+https://docs.google.com/spreadsheets/d/1fVpkQ1hISLlMFAyUjumawSkas6a85gnFciHO2rpJr7U/edit?usp=sharing
+
 
 ## Що в цьому репозиторії
 
