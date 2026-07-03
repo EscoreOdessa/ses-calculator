@@ -17,9 +17,9 @@
  * Використовує спільні речі з Панелі_AppsScript.gs (той самий проєкт, спільний простір
  * імен): getClientAddress_(), getNestedFolder_(), PANEL_COUNT_CELL. Тут їх не дублюємо.
  */
-
+ 
 var PROD_IMG_FOLDER = 'КП/Виробництво'; // тека на Диску для збережених графіків
-
+ 
 // Разова авторизація для нового користувача/девайса. Запустити ОДИН РАЗ кнопкою
 // Run прямо в редакторі Apps Script (обери authorizeProduction у списку функцій),
 // підтвердити запит доступу від Google. Це потрібно, бо з модального вікна
@@ -34,7 +34,7 @@ function authorizeProduction() {
   try { Maps.newGeocoder().geocode('Kyiv'); } catch (e) {}
   Logger.log('Авторизація виконана (або вже була надана раніше). Спробуй «Виробництво» знову.');
 }
-
+ 
 // Пікова потужність станції (кВт) для розрахунку виробітку.
 // Пріоритет: кількість панелей × 620 Вт (реальна DC-потужність масиву, PANEL_COUNT_CELL з
 // Панелі_AppsScript.gs); якщо порожньо — потужність інвертора (C22).
@@ -48,7 +48,7 @@ function getStationPeakKw_() {
     return (isFinite(inv) && inv > 0) ? inv : 0;
   } catch (e) { return 0; }
 }
-
+ 
 // Відкриває вікно з формою і графіком. Прив'язати до пункту меню
 // «📊 Виробництво електроенергії».
 function openProductionTool() {
@@ -56,14 +56,14 @@ function openProductionTool() {
     .setWidth(820).setHeight(640);
   SpreadsheetApp.getUi().showModalDialog(html, 'Виробництво електроенергії');
 }
-
+ 
 function buildProductionHtml_() {
   var addr = getEffectiveAddress_();
   var kw = getStationPeakKw_();
   var cfg = JSON.stringify({ addr: addr, kw: kw });
   return PRODUCTION_HTML_TEMPLATE.replace('__CFG__', function () { return cfg; });
 }
-
+ 
 // Розбирає рядок вигляду "50.45, 30.52" на координати; повертає null, якщо це не координати.
 function parseLatLng_(s) {
   var m = String(s).match(/(-?\d+(?:[.,]\d+)?)[,\s]+(-?\d+(?:[.,]\d+)?)/);
@@ -73,7 +73,7 @@ function parseLatLng_(s) {
   if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
   return { lat: lat, lng: lng };
 }
-
+ 
 // Головна функція, яку викликає вікно: адреса/координати + потужність -> дані для графіка.
 // Геокодинг — вбудованим сервісом Apps Script (Maps.newGeocoder), ключ не потрібен.
 function calcProduction(addressOrCoords, kw) {
@@ -94,7 +94,7 @@ function calcProduction(addressOrCoords, kw) {
     return { ok: false, error: String(e) };
   }
 }
-
+ 
 // Один виклик PVGIS PVcalc; angleQS — доп. параметри кута (наприклад
 // "&optimalangles=1" або "&angle=20&aspect=0"). Повертає розібрані місяці/рік/кут.
 function fetchPvgis_(lat, lon, pk, angleQS) {
@@ -116,7 +116,7 @@ function fetchPvgis_(lat, lon, pk, angleQS) {
   var slope = (ms && ms.slope && typeof ms.slope.value === 'number') ? Math.round(ms.slope.value) : null;
   return { monthly: byMonth, annual: Math.round(totals.E_y), slope: slope };
 }
-
+ 
 // Запит до PVGIS: помісячне і річне вироблення. Рахуємо ДВІЧІ:
 // 1) з optimalangles=1 — щоб дізнатись ідеальний кут (лише для довідки);
 // 2) з реальним кутом наших кріплень (snapToAllowedTilt_ — 15/20/30°, спільна
@@ -136,7 +136,7 @@ function getPvOutput_(lat, lon, kw) {
     return { ok: false, error: String(e), kw: Number(kw) || 0 };
   }
 }
-
+ 
 // Зберігає PNG-графік на Диск. Ім'я файлу — клієнт з калькулятора (C2), як і в решти інструментів.
 function saveProductionPng(dataUrl, annual, title) {
   var b64 = String(dataUrl).replace(/^data:image\/png;base64,/, '');
@@ -150,7 +150,7 @@ function saveProductionPng(dataUrl, annual, title) {
   var file = folder.createFile(blob);
   return { url: file.getUrl(), name: file.getName() };
 }
-
+ 
 // ----- HTML вікна (форма + canvas-графік) -----
 var PRODUCTION_HTML_TEMPLATE = ''
 + '<!DOCTYPE html><html><head><meta charset="utf-8"><style>'
@@ -191,20 +191,22 @@ var PRODUCTION_HTML_TEMPLATE = ''
 + '  google.script.run.withSuccessHandler(function(r){'
 + '    if(!r||!r.ok){setRes("Помилка: "+(r&&r.error?r.error:"невідома")+". Спробуй ще раз або точні координати.");return;}'
 + '    lastData=r;drawChart(r);'
-+ '    setRes(r.annual+" кВт\\u00b7год/рік"+(r.slope!=null?" \\u00b7 кут кріплень "+r.slope+"\\u00b0"+(r.rawSlope!=null?" (ідеал \\u2248"+r.rawSlope+"\\u00b0)":""):""));'
+
++ '    setRes(r.annual+" кВт\\u00b7год/рік"+(r.slope!=null?" \\u00b7 кут кріплень "+r.slope+"\\u00b0":""));'
 + '  }).withFailureHandler(function(e){setRes("Помилка: "+e.message);})'
 + '   .calcProduction(addr,kw);'
 + ' }catch(e){setRes("Помилка (calcProd): "+e.message);}'
 + '}'
 + 'function drawChart(r){'
 + '  var cv=document.getElementById("cv");var g=cv.getContext("2d");'
-+ '  var W=cv.width,H=cv.height,padL=70,padR=20,padT=70,padB=50;'
++ '  var W=cv.width,H=cv.height,padL=70,padR=20,padT=120,padB=50;'
 + '  g.clearRect(0,0,W,H);g.fillStyle="#ffffff";g.fillRect(0,0,W,H);'
 + '  g.fillStyle="#05564D";g.font="bold 20px Arial";'
 + '  g.fillText("Орієнтовне виробництво електроенергії",padL,32);'
 + '  g.fillStyle="#222";g.font="14px Arial";'
 + '  var sub="Станція "+r.kw+" кВт \\u00b7 Річне: "+r.annual+" кВт\\u00b7год/рік";'
-+ '  if(r.slope!=null)sub+=" \\u00b7 кут кріплень "+r.slope+"\\u00b0"+(r.rawSlope!=null?" (ідеал \\u2248"+r.rawSlope+"\\u00b0)":"")+", на південь";'
+
++ '  if(r.slope!=null)sub+=" \\u00b7 кут кріплень "+r.slope+"\\u00b0, на південь";'
 + '  g.fillText(sub,padL,54);'
 + '  var vals=r.monthly,maxV=Math.max.apply(null,vals)||1;'
 + '  var chartW=W-padL-padR,chartH=H-padT-padB;'
@@ -234,3 +236,5 @@ var PRODUCTION_HTML_TEMPLATE = ''
 + 'if(CFG.addr)calcProd();'
 + '</script>'
 + '</body></html>';
+ 
+
