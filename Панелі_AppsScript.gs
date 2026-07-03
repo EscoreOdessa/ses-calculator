@@ -11,7 +11,7 @@
  * 3) У існуючій функції onOpen (у КП-скрипті) додай один рядок у меню — див.
  *    файл «Шаг2_Установка_панели.md».
  */
-
+ 
 // ====================== НАЛАШТУВАННЯ ======================
 // Ключ Maps API зберігається ОКРЕМО від коду — у Властивостях скрипта,
 // тож оновлення коду його НЕ стирає. Встав його один раз:
@@ -20,7 +20,7 @@
 function getMapsKey_() {
   return (PropertiesService.getScriptProperties().getProperty('MAPS_KEY') || '').trim();
 }
-
+ 
 var PANEL = {
   L_MM: 2382,   // довга сторона панелі, мм
   W_MM: 1134,   // коротка сторона панелі, мм
@@ -28,12 +28,12 @@ var PANEL = {
   GAP_M: 0.02,  // зазор між панелями, м
   SETBACK_M: 0.3 // відступ від краю даху, м
 };
-
+ 
 var ADDRESS_CELL = 'C3';        // якщо хочеш підставляти адресу клієнта з калькулятора (необов'язково)
 var PANEL_COUNT_CELL = 'C42';   // кількість панелей з калькулятора (Кріплення) — ціль для розкладки
 var IMG_FOLDER   = 'КП/Розкладки'; // тека на Google Диску для збережених картинок
 // ==========================================================
-
+ 
 // Відкриває вікно з картою. Прив'язати до пункту меню «🗺️ Розкладка панелей».
 function openPanelTool() {
   if (!getMapsKey_()) {
@@ -46,14 +46,14 @@ function openPanelTool() {
     .setWidth(960).setHeight(680);
   SpreadsheetApp.getUi().showModalDialog(html, 'Розкладка панелей на даху');
 }
-
+ 
 // Одноразова авторизація для нового користувача. Викликати з пункту меню
 // «🔑 Авторизувати» — Google покаже запит дозволу (з вікна-діалогу він не з'являється).
 function authorizeTool() {
   var name = DriveApp.getRootFolder().getName(); // дотик до Drive → тригерить дозвіл
   SpreadsheetApp.getUi().alert('Доступ надано (' + name + '). Тепер «Зберегти в КП» працюватиме.');
 }
-
+ 
 // Адреса клієнта з калькулятора (для автозаповнення поля пошуку).
 function getClientAddress_() {
   try {
@@ -61,25 +61,25 @@ function getClientAddress_() {
     return calc ? String(calc.getRange(ADDRESS_CELL).getDisplayValue()).trim() : '';
   } catch (e) { return ''; }
 }
-
+ 
 // Координати об'єкта (необов'язкове поле в калькуляторі — менеджер сам вписує
 // "50.4501, 30.5234", якщо знає точну точку). Пріоритетніше за текстову адресу,
 // бо не потребує геокодингу і не може "промахнутись" повз потрібне місце.
 var COORDS_CELL = 'C9';
-
+ 
 function getClientCoords_() {
   try {
     var calc = SpreadsheetApp.getActive().getSheetByName('Калькулятор');
     return calc ? String(calc.getRange(COORDS_CELL).getDisplayValue()).trim() : '';
   } catch (e) { return ''; }
 }
-
+ 
 // Спільна "пам'ять" адреси між інструментами (Розкладка панелей і Виробництво
 // електроенергії). Пріоритет: координати з калькулятора (C9) → адреса з
 // калькулятора (C3) → остання адреса/координати, введені вручну в БУДЬ-ЯКОМУ
 // з цих двох вікон.
 var LAST_ADDR_PROP = 'LAST_ADDR';
-
+ 
 function getEffectiveAddress_() {
   var coords = getClientCoords_();
   if (coords) return coords;
@@ -88,7 +88,7 @@ function getEffectiveAddress_() {
   try { return PropertiesService.getDocumentProperties().getProperty(LAST_ADDR_PROP) || ''; }
   catch (e) { return ''; }
 }
-
+ 
 // Викликається з клієнтського коду обох інструментів після успішного пошуку
 // адреси/координат — щоб вона "запам'ятовувалась" для іншого інструменту.
 function saveLastAddress(addr) {
@@ -97,7 +97,7 @@ function saveLastAddress(addr) {
     if (addr) PropertiesService.getDocumentProperties().setProperty(LAST_ADDR_PROP, addr);
   } catch (e) {}
 }
-
+ 
 // Кількість панелей з калькулятора (для автопідстановки цілі розкладки).
 function getPanelTargetCount_() {
   try {
@@ -107,18 +107,18 @@ function getPanelTargetCount_() {
     return (isFinite(v) && v > 0) ? Math.round(v) : 0;
   } catch (e) { return 0; }
 }
-
+ 
 // Кути, які фізично підтримують наші кріплення. Розрахунковий (ідеальний) кут
 // завжди округлюється ВГОРУ до найближчого з цього списку.
 var ALLOWED_TILTS = [15, 20, 30];
-
+ 
 function snapToAllowedTilt_(deg) {
   for (var i = 0; i < ALLOWED_TILTS.length; i++) {
     if (deg <= ALLOWED_TILTS[i]) return ALLOWED_TILTS[i];
   }
   return ALLOWED_TILTS[ALLOWED_TILTS.length - 1]; // якщо ідеальний кут більший за максимум кріплення
 }
-
+ 
 // Оптимальний кут нахилу (і азимут) для точки — беремо з PVGIS (безкоштовний, без ключа,
 // покриває Україну). Якщо сервіс недоступний — рахуємо орієнтовно за широтою.
 // Підсумковий кут завжди підганяється під наявні кріплення (ALLOWED_TILTS).
@@ -139,7 +139,7 @@ function getOptimalTilt(lat, lon) {
     return { ok: false, rawSlope: raw, slope: snapToAllowedTilt_(raw), azimuth: 0, error: String(e) };
   }
 }
-
+ 
 // Проста емпірична формула на випадок, якщо PVGIS недоступний.
 function fallbackTilt_(lat) {
   var a = Math.abs(lat);
@@ -147,28 +147,28 @@ function fallbackTilt_(lat) {
   if (a <= 50) return Math.round(a * 0.76 + 3.1);
   return Math.round(a * 0.5 + 16.3);
 }
-
+ 
 // Викликається з вікна: зберігає 2D-схему (PNG з canvas) на Диск.
 function savePanelPng(dataUrl, count, kw, title) {
   var b64 = String(dataUrl).replace(/^data:image\/png;base64,/, '');
   var bytes = Utilities.base64Decode(b64);
-
+ 
   // Ім'я файлу — назва клієнта з калькулятора (C2), якщо задана; інакше — адреса
   // з поля пошуку в самому інструменті; інакше — просто «об'єкт».
   var calc = SpreadsheetApp.getActive().getSheetByName('Калькулятор');
   var client = calc ? String(calc.getRange('C2').getDisplayValue()).trim() : '';
   var namePart = String(client || title || 'об\'єкт').replace(/[\/\\]/g, '-').trim();
-
+ 
   var blob = Utilities.newBlob(bytes, 'image/png',
     namePart + ' — розкладка ' + count + ' пан ' + kw + ' кВт.png');
   var folder = getNestedFolder_(IMG_FOLDER);
   var file = folder.createFile(blob);
-
+ 
   // Розкладка — самостійний інструмент, окремий від КП. Картинка лягає тільки
   // на Диск у свою теку, у сам PDF КП вона більше не підтягується.
   return { url: file.getUrl(), name: file.getName() };
 }
-
+ 
 function getNestedFolder_(path) {
   var parts = path.split('/');
   var parent = DriveApp.getRootFolder();
@@ -178,7 +178,7 @@ function getNestedFolder_(path) {
   }
   return parent;
 }
-
+ 
 // ----- HTML вікна (карта + логіка розкладки) -----
 function buildPanelHtml_() {
   var addr = getEffectiveAddress_();
@@ -195,7 +195,7 @@ function buildPanelHtml_() {
     .replace('__CFG__', function () { return cfg; });
   return html;
 }
-
+ 
 var HTML_TEMPLATE = ''
 + '<!DOCTYPE html><html><head><meta charset="utf-8"><style>'
 + 'body{font-family:Arial,sans-serif;margin:0;font-size:13px;color:#222}'
@@ -258,7 +258,8 @@ var HTML_TEMPLATE = ''
 + '  document.getElementById("tiltinfo").textContent="Рахую кут нахилу...";'
 + '  google.script.run.withSuccessHandler(function(r){'
 + '    optTilt=r;'
-+ '    document.getElementById("tiltinfo").textContent="Кут кріплень: "+r.slope+"\\u00b0 (ідеал \\u2248"+r.rawSlope+"\\u00b0, на південь)"+(r.ok?"":", орієнтовно");'
+
++ '    document.getElementById("tiltinfo").textContent="Кут кріплень: "+r.slope+"\\u00b0 (на південь)"+(r.ok?"":", орієнтовно");'
 + '  }).withFailureHandler(function(e){optTilt=null;document.getElementById("tiltinfo").textContent="";})'
 + '   .getOptimalTilt(center.lat(),center.lng());'
 + '}'
@@ -310,21 +311,23 @@ var HTML_TEMPLATE = ''
 + '  else txt=n+" панелей \\u00b7 "+kw+" кВт";'
 + '  document.getElementById("res").textContent=txt;'
 + '}'
+
 + 'function draw2D(){'
 + '  var W=1000,H=700,pad=80;'
 + '  var cv=document.createElement("canvas");cv.width=W;cv.height=H;var g=cv.getContext("2d");'
 + '  g.fillStyle="#ffffff";g.fillRect(0,0,W,H);'
 + '  var minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;'
 + '  roofM.forEach(function(p){minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);maxX=Math.max(maxX,p.x);maxY=Math.max(maxY,p.y);});'
-+ '  var sc=Math.min((W-2*pad)/((maxX-minX)||1),(H-2*pad-30)/((maxY-minY)||1));'
-+ '  function MX(x){return pad+(x-minX)*sc;}function MY(y){return H-pad-(y-minY)*sc;}'
++ '  var shrink=0.8;'
++ '  var sc=Math.min((W-2*pad)/((maxX-minX)||1),(H-2*pad-30)/((maxY-minY)||1))*shrink;'
++ '  var extraX=((W-2*pad)-(maxX-minX)*sc)/2,extraY=((H-2*pad-30)-(maxY-minY)*sc)/2;'
++ '  function MX(x){return pad+extraX+(x-minX)*sc;}function MY(y){return H-pad-extraY-(y-minY)*sc;}'
 + '  g.beginPath();roofM.forEach(function(p,i){var X=MX(p.x),Y=MY(p.y);if(i===0)g.moveTo(X,Y);else g.lineTo(X,Y);});g.closePath();'
 + '  g.fillStyle="#f4f6f6";g.fill();g.lineWidth=3;g.strokeStyle="#05564D";g.stroke();'
 + '  panelsM.forEach(function(c){g.beginPath();c.forEach(function(p,i){var X=MX(p.x),Y=MY(p.y);if(i===0)g.moveTo(X,Y);else g.lineTo(X,Y);});g.closePath();g.fillStyle="#1a73e8";g.globalAlpha=0.85;g.fill();g.globalAlpha=1;g.lineWidth=1;g.strokeStyle="#0b3d91";g.stroke();});'
 + '  var n=panels.length,kw=Math.round(n*CFG.WATT/1000*10)/10;'
-+ '  g.fillStyle="#05564D";g.font="bold 24px Arial";g.fillText("Орієнтовна розкладка панелей",pad,46);'
-// компас: карта завжди orientована північчю вгору (roofM рахується напряму з lat/lng без обертання),
-// тож просте N/S/E/W коло без додаткових обчислень коректно показує сторони світу.
++ '  g.textAlign="center";'
++ '  g.fillStyle="#05564D";g.font="bold 24px Arial";g.fillText("Орієнтовна розкладка панелей",W/2,46);'
 + '  (function(){var cx=W-60,cy=50,r=22;'
 + '    g.save();g.strokeStyle="#05564D";g.fillStyle="#05564D";g.lineWidth=2;'
 + '    g.beginPath();g.arc(cx,cy,r,0,2*Math.PI);g.stroke();'
@@ -332,14 +335,18 @@ var HTML_TEMPLATE = ''
 + '    g.textAlign="center";g.font="bold 13px Arial";g.fillText("N",cx,cy-r-6);'
 + '    g.font="11px Arial";g.fillText("S",cx,cy+r+14);g.fillText("E",cx+r+11,cy+4);g.fillText("W",cx-r-11,cy+4);'
 + '    g.restore();})();'
++ '  g.textAlign="center";'
 + '  g.fillStyle="#222";g.font="17px Arial";'
-+ '  g.fillText(n+" панелей  \\u00b7  "+kw+" кВт  \\u00b7  панель "+CFG.L+"\\u00d7"+CFG.W+" м",pad,H-26);'
++ '  g.fillText(n+" панелей  \\u00b7  "+kw+" кВт  \\u00b7  панель "+CFG.L+"\\u00d7"+CFG.W+" м",W/2,H-26);'
 + '  if(optTilt&&optTilt.slope){'
 + '    g.fillStyle="#05564D";g.font="15px Arial";'
-+ '    g.fillText("Кут нахилу кріплень: "+optTilt.slope+"\\u00b0 (ідеал \\u2248"+optTilt.rawSlope+"\\u00b0), орієнтація на південь"+(optTilt.ok?"":" (орієнтовно)"),pad,H-50);'
++ '    g.fillText("Кут нахилу кріплень: "+optTilt.slope+"\\u00b0, орієнтація на південь"+(optTilt.ok?"":" (орієнтовно)"),W/2,H-50);'
 + '  }'
++ '  g.textAlign="left";'
 + '  return cv.toDataURL("image/png");'
 + '}'
+
+
 + 'function save(){try{'
 + '  if(!roof||!panelsM.length){setRes("Спочатку розклади панелі.");return;}'
 + '  var n=panels.length,kw=Math.round(n*CFG.WATT/1000*10)/10;'
@@ -353,3 +360,5 @@ var HTML_TEMPLATE = ''
 + '</script>'
 + '<script async defer src="https://maps.googleapis.com/maps/api/js?key=__KEY__&libraries=geometry&v=weekly&callback=initMap"></script>'
 + '</body></html>';
+ 
+
