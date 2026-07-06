@@ -132,10 +132,21 @@
         [
           { key: "name", label: "Назва", type: "text" },
           { key: "price", label: "Ціна за панель, $", type: "number" },
+          {
+            key: "adjustableTilt",
+            label: "Кут кріплень",
+            type: "select",
+            opts: [
+              ["true", "Стійки, кут обирається (15/20/30°)"],
+              ["false", "Впритул до схилу даху (кут невідомий)"],
+            ],
+          },
         ],
         data.roofTypes,
         (i, key, val) => {
-          data.roofTypes[i][key] = key === "price" ? num(val) : val;
+          if (key === "price") data.roofTypes[i][key] = num(val);
+          else if (key === "adjustableTilt") data.roofTypes[i][key] = val === "true";
+          else data.roofTypes[i][key] = val;
           onDataChanged();
         },
         (i) => {
@@ -229,7 +240,7 @@
       onDataChanged();
     });
     el("dani-add-roof").addEventListener("click", () => {
-      getData().roofTypes.push({ name: "Новий тип", price: 0 });
+      getData().roofTypes.push({ name: "Новий тип", price: 0, adjustableTilt: true });
       renderAll();
       onDataChanged();
     });

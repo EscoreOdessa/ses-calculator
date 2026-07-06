@@ -55,13 +55,18 @@ function pvgisCacheSet(url, data) {
 }
 
 // Спільна функція для panels.js і production.js: спочатку дивиться в кеш,
-// потім пробує звернутись до PVGIS напряму, і лише як фолбек — по черзі через
-// кожен проксі зі списку, поки один з них не спрацює. Кожна спроба обмежена
-// таймаутом 12с (щоб зависла відповідь не тримала менеджера вічно на екрані
-// "Рахую..." — швидше переходимо до наступного варіанту), і логується в
-// консоль браузера (F12). Якщо провалились УСІ — підсумкова помилка містить
-// коротку причину по кожній спробі, щоб можна було зрозуміти причину без
-// відкриття DevTools (досить прочитати повідомлення на екрані).
+// потім пробує звернутись до PVGIS напряму (майже завжди провалиться через
+// CORS у браузері), і лише як фолбек — через усі проксі зі списку ОДНОЧАСНО
+// (паралельно, а не по черзі одне за одним) — перемагає перший, хто дасть
+// коректну відповідь. З файлу відкритого локально (file://) PVGIS сам буває
+// повільним (це державний науковий сервіс ЄС), тому таймаут на кожну спробу —
+// 20с; але оскільки всі проксі йдуть паралельно, загальне очікування в
+// найгіршому разі теж ~20с, а не сума тайм-аутів усіх по черзі. Кожна спроба
+// логується в консоль браузера (F12). Якщо провалились УСІ — підсумкова
+// помилка містить коротку причину по кожній спробі, щоб можна було зрозуміти
+// причину без відкриття DevTools (досить прочитати повідомлення на екрані).
+const PVGIS_TIMEOUT_MS = 20000;
+
 async function fetchPvgisJson(url) {
   const cached = pvgisCacheGet(url);
   if (cached) {
@@ -69,54 +74,86 @@ async function fetchPvgisJson(url) {
     return cached;
   }
 
-  const attempts = [];
-
   async function tryOne(label, fetchUrl) {
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 12000);
+      const timer = setTimeout(() => controller.abort(), PVGIS_TIMEOUT_MS);
       let r;
       try {
         r = await fetch(fetchUrl, { signal: controller.signal });
       } finally {
         clearTimeout(timer);
       }
-      if (!r.ok) {
-        attempts.push(label + ": HTTP " + r.status);
-        return null;
-      }
+      if (!r.ok) throw new Error("HTTP " + r.status);
       const text = await r.text();
+      let data;
       try {
-        const data = JSON.parse(text);
-        console.log("[PVGIS] " + label + ": OK");
-        return data;
+        data = JSON.parse(text);
       } catch (parseErr) {
-        attempts.push(label + ": відповідь не JSON (" + text.slice(0, 80).replace(/\s+/g, " ") + ")");
-        return null;
+        throw new Error("відповідь не JSON (" + text.slice(0, 80).replace(/\s+/g, " ") + ")");
       }
+      console.log("[PVGIS] " + label + ": OK");
+      return data;
     } catch (e) {
-      const msg = e && e.name === "AbortError" ? "таймаут 12с" : e && e.message ? e.message : String(e);
-      attempts.push(label + ": " + msg);
-      return null;
+      const msg =
+        e && e.name === "AbortError" ? "таймаут " + PVGIS_TIMEOUT_MS / 1000 + "с" : e && e.message ? e.message : String(e);
+      throw new Error(label + ": " + msg);
     }
   }
 
-  let result = await tryOne("напряму", url);
-  if (result) {
-    pvgisCacheSet(url, result);
-    return result;
+  const attempts = [];
+
+  try {
+    const data = await tryOne("напряму", url);
+    pvgisCacheSet(url, data);
+    return data;
+  } catch (e) {
+    attempts.push(e.message);
   }
 
-  for (const proxy of PVGIS_PROXIES) {
-    result = await tryOne("проксі " + proxy.split("/")[2], proxy + encodeURIComponent(url));
-    if (result) {
-      pvgisCacheSet(url, result);
-      return result;
-    }
+  const proxyAttempts = PVGIS_PROXIES.map((proxy) => tryOne("проксі " + proxy.split("/")[2], proxy + encodeURIComponent(url)));
+  try {
+    const data = await Promise.any(proxyAttempts);
+    pvgisCacheSet(url, data);
+    return data;
+  } catch (aggregateErr) {
+    (aggregateErr.errors || []).forEach((e) => attempts.push(e.message));
+    console.warn("[PVGIS] усі спроби провалились:", attempts);
+    throw new Error(attempts.join(" | "));
+  }
+}
+
+// Чи можна вибрати кут кріплень (регульовані стійки, 15/20/30°), чи панелі
+// монтуються впритул до існуючого схилу даху (кут = кут ската даху, він
+// невідомий без виїзду на об'єкт — тому нічого не рахуємо і не показуємо як
+// конкретне число). Визначається типом даху, обраним на вкладці «Калькулятор»
+// (поле adjustableTilt у Дані!roofTypes, керується на вкладці «Дані»).
+//
+// Якщо в браузері вже збережені старі відредаговані Дані (localStorage, ще
+// без поля adjustableTilt), поточний roofTypes може не мати цього поля —
+// тоді підстраховуємось і дивимось той самий тип даху в "заводському"
+// DEFAULT_DATA (він завжди свіжий, бо не зберігається в localStorage).
+function isRoofAdjustable() {
+  const app = window.SesApp;
+  if (!app) return true;
+  const data = app.getData ? app.getData() : null;
+  const r = app.getLastResult ? app.getLastResult() : null;
+  if (!data || !r || !r.input) return true;
+
+  const roof = data.roofTypes.find((x) => x.name === r.input.roofType);
+  if (roof && typeof roof.adjustableTilt === "boolean") {
+    return roof.adjustableTilt;
   }
 
-  console.warn("[PVGIS] усі спроби провалились:", attempts);
-  throw new Error(attempts.join(" | "));
+  // Поля нема (стара збережена версія Дані) — питаємо DEFAULT_DATA за назвою.
+  const defList = typeof DEFAULT_DATA !== "undefined" ? DEFAULT_DATA.roofTypes : [];
+  const def = defList.find((x) => x.name === r.input.roofType);
+  const result = !def || def.adjustableTilt !== false;
+  console.log(
+    "[isRoofAdjustable] '" + r.input.roofType + "': поле відсутнє в збережених Дані, фолбек на DEFAULT_DATA →",
+    result
+  );
+  return result;
 }
 
 const PANEL_SPEC = {
@@ -210,6 +247,11 @@ const LAST_ADDR_KEY = "ses_last_address";
     document.querySelectorAll('.tab-btn[data-tab="panels"]').forEach((btn) => {
       btn.addEventListener("click", () => {
         if (map) prefillFromCalc();
+        // Тип даху на калькуляторі могли поміняти, поки менеджер був на іншій
+        // вкладці — раніше показаний тут кут (чи його відсутність) міг
+        // застаріти. ensureTilt() сам звірить, чи "регульованість" кута
+        // відтоді не змінилась, і за потреби порахує/приховає заново.
+        ensureTilt();
       });
     });
 
@@ -304,17 +346,30 @@ const LAST_ADDR_KEY = "ses_last_address";
     // випадок, коли кут взагалі не запитувався (наприклад, розкладку міняли
     // лише кнопкою «Розкласти» без повторного натискання «Готово»).
     async function ensureTilt() {
-      if (optTilt) return;
-      if (!tiltPromise) {
-        if (!roofPolygon || roofPolygon.getPath().getLength() < 3) return;
-        const bounds = new google.maps.LatLngBounds();
-        roofPolygon.getPath().getArray().forEach((ll) => bounds.extend(ll));
-        tiltPromise = fetchTilt(bounds.getCenter());
-      }
+      // Тип даху на калькуляторі могли поміняти ПІСЛЯ того, як кут уже
+      // порахувався для попереднього типу (кешований optTilt) — якщо
+      // "регульованість" кута відтоді змінилась, кеш більше не дійсний і
+      // треба порахувати заново, а не віддавати старе значення.
+      if (optTilt && optTilt.adjustable === isRoofAdjustable()) return;
+      if (!roofPolygon || roofPolygon.getPath().getLength() < 3) return;
+      const bounds = new google.maps.LatLngBounds();
+      roofPolygon.getPath().getArray().forEach((ll) => bounds.extend(ll));
+      tiltPromise = fetchTilt(bounds.getCenter());
       await tiltPromise;
     }
 
     async function fetchTilt(center) {
+      const adjustable = isRoofAdjustable();
+      if (!adjustable) {
+        // Скатний дах/черепиця/бітумна черепиця — панелі йдуть впритул до
+        // існуючого схилу даху, стійок з вибором кута тут немає, і ціна за
+        // такий тип даху вже це враховує. Мережу взагалі не смикаємо, і
+        // жодного рядка про кут не показуємо (ні в інтерфейсі, ні на PNG) —
+        // за проханням Anna: для цих типів даху питання кута просто зайве.
+        optTilt = { ok: true, flush: true, slope: null, rawSlope: null, azimuth: null, adjustable: false };
+        el("pn-tiltinfo").textContent = "";
+        return;
+      }
       el("pn-tiltinfo").textContent = "Рахую кут нахилу...";
       const lat = center.lat();
       const lon = center.lng();
@@ -336,11 +391,12 @@ const LAST_ADDR_KEY = "ses_last_address";
           rawSlope: Math.round(slope),
           slope: SesGeometry.snapToAllowedTilt(slope),
           azimuth: Math.round(azimuth),
+          adjustable: true,
         };
       } catch (e) {
         // PVGIS недоступний (навіть через проксі, якщо він заданий) — рахуємо орієнтовно за широтою.
         const raw = SesGeometry.fallbackTilt(lat);
-        optTilt = { ok: false, rawSlope: raw, slope: SesGeometry.snapToAllowedTilt(raw), azimuth: 0 };
+        optTilt = { ok: false, rawSlope: raw, slope: SesGeometry.snapToAllowedTilt(raw), azimuth: 0, adjustable: true };
       }
       el("pn-tiltinfo").textContent =
         "Кут кріплень: " + optTilt.slope + "° (ідеал ≈" + optTilt.rawSlope + "°, на південь)" + (optTilt.ok ? "" : ", орієнтовно");
@@ -498,7 +554,11 @@ const LAST_ADDR_KEY = "ses_last_address";
       g.font = "17px Arial";
       g.fillText(n + " панелей · " + kw + " кВт · панель " + PANEL_SPEC.lengthM + "×" + PANEL_SPEC.widthM + " м", pad, H - 26);
 
-      if (optTilt && optTilt.slope) {
+      if (optTilt && optTilt.flush) {
+        // Скатний дах/черепиця/бітумна черепиця — питання кута тут зайве
+        // (ціна вже враховує монтаж впритул до схилу), тому свідомо нічого
+        // не пишемо про кут на цій картинці.
+      } else if (optTilt && optTilt.slope) {
         g.fillStyle = "#05564D";
         g.font = "15px Arial";
         g.fillText(

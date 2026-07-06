@@ -133,13 +133,20 @@ const LAST_ADDR_KEY_PROD = "ses_last_address"; // спільний ключ з p
       el("pv-canvas").style.display = "none";
 
       const { ideal, ok: idealOk } = await fetchIdealTilt(coords.lat, coords.lng, peakKw);
-      const tiltUsed = SesGeometry.snapToAllowedTilt(ideal);
+      // Для скатного даху/черепиці панелі йдуть впритул до існуючого схилу —
+      // реальний кут кріплень невідомий без виїзду на об'єкт, тож не підганяємо
+      // під 15/20/30° (це стійки для плаского даху/землі). Оцінку вироблення
+      // для такого випадку рахуємо за "ідеальним" кутом PVGIS як орієнтир.
+      const adjustable = isRoofAdjustable();
+      const tiltUsed = adjustable ? SesGeometry.snapToAllowedTilt(ideal) : Math.round(ideal);
 
       try {
         const { monthly, annual } = await fetchProduction(coords.lat, coords.lng, peakKw, tiltUsed);
         lastChart = { monthly, annual, tiltUsed, tiltIdeal: Math.round(ideal), ok: true };
         setStatus(
-          "Кут кріплень: " + tiltUsed + "° (ідеал ≈" + Math.round(ideal) + "°" + (idealOk ? "" : ", орієнтовно") + ")"
+          adjustable
+            ? "Кут кріплень: " + tiltUsed + "° (ідеал ≈" + Math.round(ideal) + "°" + (idealOk ? "" : ", орієнтовно") + ")"
+            : "Оцінка за орієнтовним кутом ~" + tiltUsed + "° — реальний кут ската даху уточнюється на об'єкті" + (idealOk ? "" : " (приблизно)")
         );
         drawChart(lastChart);
       } catch (e) {
