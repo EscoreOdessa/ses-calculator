@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Калькулятор СЕС — потужність і ціна</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="topbar">Калькулятор потужності та ціни СЕС (перший дзвінок)</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="calc">Калькулятор</button>
+  <button class="tab-btn" data-tab="dani">Дані</button>
+  <button class="tab-btn" data-tab="panels">Розкладка панелей</button>
+  <button class="tab-btn" data-tab="production">Виробництво електроенергії</button>
+  <button class="tab-btn" data-tab="kp">КП</button>
+</nav>
+
+<main>
+
+  <!-- ==================== КАЛЬКУЛЯТОР ==================== -->
+  <section class="panel active" id="panel-calc">
+
+    <div class="card">
+      <h2>Введення даних (заповнює менеджер)</h2>
+
+      <div class="field">
+        <label for="in-client">Запит від</label>
+        <input type="text" id="in-client" placeholder="Ім'я клієнта / компанія" />
+      </div>
+
+      <div class="field">
+        <label for="in-monthly">Місячне споживання, кВт·год</label>
+        <input type="number" id="in-monthly" min="0" step="100" placeholder="наприклад, 2500" />
+      </div>
+
+      <div class="field">
+        <label for="in-type">Тип станції</label>
+        <select id="in-type">
+          <option value="мережева">Мережева</option>
+          <option value="гібридна" selected>Гібридна</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="in-location">Розташування</label>
+        <select id="in-location">
+          <option value="дах" selected>Дах</option>
+          <option value="земля">Земля</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="in-vat">Форма оплати</label>
+        <select id="in-vat">
+          <option value="1" selected>ПДВ</option>
+          <option value="0"></option>
+        </select>
+      </div>
+
+      <div class="field" id="field-autonomy">
+        <label for="in-hours">Години автономії (тільки для гібридної)</label>
+        <input type="number" id="in-hours" value="3" min="0" step="0.5" />
+      </div>
+
+      <div class="field">
+        <label for="in-roof">Тип даху / кріплення</label>
+        <select id="in-roof"></select>
+      </div>
+
+      <div class="field">
+        <label for="in-rate">Курс, грн/$</label>
+        <input type="number" id="in-rate" value="45" min="0" step="0.1" />
+      </div>
+
+      <div class="field">
+        <label for="in-coords">Координати об'єкта (lat, lng)</label>
+        <input type="text" id="in-coords" placeholder="напр. 50.4501, 30.5234" />
+      </div>
+      <p class="hint">Необов'язково — використовується у «Розкладці панелей» та «Виробництві електроенергії», щоб не вводити адресу двічі.</p>
+    </div>
+
+    <div id="calc-warnings"></div>
+
+    <div class="card">
+      <h2>Розрахунок потужності</h2>
+      <div class="row"><span class="label">Добове споживання, кВт·год</span><span class="value" id="out-daily"></span></div>
+      <div class="row"><span class="label">Денне споживання 80%, кВт·год</span><span class="value" id="out-day"></span></div>
+      <div class="row"><span class="label">Нічне споживання 20%, кВт·год</span><span class="value" id="out-night"></span></div>
+      <div class="row"><span class="label">Цільова потужність (середнє денне), кВт</span><span class="value" id="out-target"></span></div>
+    </div>
+
+    <div class="card">
+      <h2>Підбір обладнання</h2>
+      <div class="row"><span class="label">Підібраний інвертор DEYE, кВт</span><span class="value" id="out-inverter"></span></div>
+      <div class="row"><span class="label">Панелі (620 Вт/шт)</span><span class="value" id="out-panels"></span></div>
+    </div>
+
+    <div class="card">
+      <h2>Орієнтовна ціна станції</h2>
+      <div class="row"><span class="label">Ціна за кВт, $</span><span class="value" id="out-priceperkw"></span></div>
+      <div class="row"><span class="label">Орієнтовна ціна, $ (без АКБ)</span><span class="value" id="out-stationprice"></span></div>
+    </div>
+
+    <div class="card" id="card-akb">
+      <h2>Автономія та комплект АКБ</h2>
+      <div class="row"><span class="label">Потрібна ємність АКБ, кВт·год</span><span class="value" id="out-akbreq"></span></div>
+      <div class="row"><span class="label">Система АКБ (авто: LV / HV)</span><span class="value" id="out-akbbank"></span></div>
+      <div class="row"><span class="label">Підібрана модель АКБ</span><span class="value" id="out-akbmodel"></span></div>
+      <div class="row"><span class="label">Кількість модулів АКБ</span><span class="value" id="out-akbcount"></span></div>
+      <div class="row"><span class="label">Підсумкова ємність АКБ, кВт·год</span><span class="value" id="out-akbtotal"></span></div>
+      <div class="row"><span class="label">BMS / Стійка</span><span class="value" id="out-akbrack"></span></div>
+      <div class="row"><span class="label">Ціна комплекту АКБ, $</span><span class="value" id="out-akbprice"></span></div>
+    </div>
+
+    <div class="card">
+      <h2>Кріплення (монтаж панелей)</h2>
+      <div class="row"><span class="label">Ціна кріплення за панель, $</span><span class="value" id="out-mountperpanel"></span></div>
+      <div class="row"><span class="label">Вартість кріплень, $</span><span class="value" id="out-mounttotal"></span></div>
+    </div>
+
+    <div class="card">
+      <h2>Разом по СЕС</h2>
+      <div class="row total"><span class="label">Сумарна ціна СЕС, $</span><span class="value" id="out-totalusd"></span></div>
+      <div class="row total"><span class="label">Сумарна ціна СЕС, грн</span><span class="value" id="out-totaluah"></span></div>
+    </div>
+
+  </section>
+
+  <!-- ==================== ІНШІ ВКЛАДКИ (наступні кроки) ==================== -->
+  <section class="panel" id="panel-dani">
+
+    <div class="card">
+      <h2>Керування даними</h2>
+      <p class="hint" id="dani-status"></p>
+      <div class="btn-row">
+        <button class="btn" id="dani-export">Експортувати JSON</button>
+        <label class="btn" for="dani-import-file">Імпортувати JSON</label>
+        <input type="file" id="dani-import-file" accept="application/json" style="display:none" />
+        <button class="btn btn-danger" id="dani-reset">Скинути до початкових</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Ціни станцій (вид / розташування / оплата / потужність → $/кВт)</h2>
+      <table class="dani-table" id="dani-prices-table"></table>
+      <button class="btn" id="dani-add-price">+ Додати рядок</button>
+    </div>
+
+    <div class="card">
+      <h2>Типи даху / кріплення (ціна за панель, $, без націнки)</h2>
+      <table class="dani-table" id="dani-roof-table"></table>
+      <button class="btn" id="dani-add-roof">+ Додати рядок</button>
+    </div>
+
+    <div class="card">
+      <h2>Інвертори DEYE, кВт</h2>
+      <div class="field">
+        <label>Мережеві (через кому)</label>
+        <input type="text" id="dani-inv-mesh" />
+      </div>
+      <div class="field">
+        <label>Гібридні (через кому)</label>
+        <input type="text" id="dani-inv-hybrid" />
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Акумулятори LV (низьковольтні)</h2>
+      <table class="dani-table" id="dani-lv-table"></table>
+      <button class="btn" id="dani-add-lv">+ Додати модель</button>
+    </div>
+
+    <div class="card">
+      <h2>Акумулятори HV (високовольтні, окремий BMS + стійка)</h2>
+      <table class="dani-table" id="dani-hv-table"></table>
+      <button class="btn" id="dani-add-hv">+ Додати модель</button>
+    </div>
+
+  </section>
+
+  <section class="panel" id="panel-panels">
+    <div class="card" id="panels-no-key" style="display:none">
+      <div class="warning">
+        Не задано ключ Google Maps API. Відкрийте файл <code>panels.js</code>, впишіть ключ у рядок
+        <code>const MAPS_API_KEY = "";</code> і збережіть файл (див. інструкцію «Налаштування_Google_Cloud.md»).
+      </div>
+    </div>
+
+    <div class="card" id="panels-tool">
+      <h2>Розкладка панелей на даху</h2>
+      <p class="hint">Знайдіть адресу → «Обвести дах» (клікайте по кутах даху на карті, потім «Готово») → панелі розкладуться самі. Кількість підтягується з калькулятора (можна змінити вручну); ряди заповнюються з південного краю — там сонця найбільше. Кутом рядів вирівняйте їх вздовж схилу даху.</p>
+
+      <div class="btn-row" style="margin-bottom:10px">
+        <input type="text" id="pn-addr" placeholder="Адреса або координати" style="flex:1;min-width:200px;padding:7px 10px;border:1px solid var(--border);border-radius:6px" />
+        <button class="btn" id="pn-find">Знайти</button>
+        <button class="btn" id="pn-draw">✏️ Обвести дах</button>
+        <button class="btn" id="pn-finish">✓ Готово</button>
+        <button class="btn btn-danger" id="pn-clear">Очистити</button>
+      </div>
+
+      <div class="btn-row" style="margin-bottom:10px">
+        <label>Кут рядів <input type="range" id="pn-angle" min="0" max="180" value="0" style="width:120px" /> <span id="pn-angle-val">0°</span></label>
+        <label>Орієнтація
+          <select id="pn-orient">
+            <option value="port">вертикально</option>
+            <option value="land">горизонтально</option>
+          </select>
+        </label>
+        <label>К-сть панелей <input type="number" id="pn-target" min="0" style="width:70px" /></label>
+        <button class="btn" id="pn-layout">▦ Розкласти</button>
+        <button class="btn" id="pn-save">⬇ Зберегти PNG</button>
+      </div>
+
+      <div id="pn-tiltinfo" class="hint"></div>
+      <div id="pn-result" style="font-weight:600;color:var(--brand);margin-bottom:10px"></div>
+
+      <div id="pn-map" style="width:100%;height:440px;border-radius:8px;border:1px solid var(--border)"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-production">
+    <div class="card" id="prod-no-key" style="display:none">
+      <div class="warning">
+        Не задано ключ Google Maps API (потрібен для пошуку адреси). Впишіть його у <code>panels.js</code> —
+        див. «Налаштування_Google_Cloud.md». Якщо адреса вже введена як координати, можна порахувати і без ключа.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Виробництво електроенергії (PVGIS)</h2>
+      <p class="hint">Орієнтовне річне та помісячне виробництво станції за даними безкоштовного сервісу PVGIS (Європейська комісія). Кут кріплень береться той самий, що і в «Розкладці панелей» (15/20/30°, підігнаний під ідеальний).</p>
+      <p class="hint">PVGIS блокує прямі запити з браузера — потрібен невеликий безкоштовний проксі (заповнюється в <code>production.js</code>, рядок <code>PVGIS_PROXY</code>). Інструкція: «Налаштування_PVGIS_Proxy.md».</p>
+
+      <div class="btn-row" style="margin-bottom:10px">
+        <input type="text" id="pv-addr" placeholder="Адреса або координати" style="flex:1;min-width:200px;padding:7px 10px;border:1px solid var(--border);border-radius:6px" />
+        <button class="btn" id="pv-find">Знайти</button>
+        <label>Потужність станції, кВт <input type="number" id="pv-power" min="0" step="0.1" style="width:80px" /></label>
+        <button class="btn" id="pv-calc">Порахувати</button>
+        <button class="btn" id="pv-save">⬇ Зберегти PNG</button>
+      </div>
+
+      <div id="pv-status" class="hint"></div>
+      <canvas id="pv-canvas" width="900" height="500" style="width:100%;max-width:900px;border:1px solid var(--border);border-radius:8px;display:none"></canvas>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-kp">
+    <div class="card no-print">
+      <h2>Комерційна пропозиція</h2>
+      <p class="hint">Формується автоматично з даних калькулятора. Натисніть «Друкувати / Зберегти PDF» — відкриється системне вікно друку браузера, де можна обрати «Зберегти як PDF».</p>
+      <div class="btn-row">
+        <button class="btn" id="kp-print">🖨 Друкувати / Зберегти PDF</button>
+      </div>
+    </div>
+
+    <div id="kp-doc" class="kp-doc">
+      <div class="kp-logo-row">
+        <img id="kp-logo" alt="ESCORE" />
+      </div>
+      <div class="kp-band">КОМЕРЦІЙНА ПРОПОЗИЦІЯ</div>
+      <p class="kp-client" id="kp-client"></p>
+      <p class="kp-company">ESCORE — інсталяція сонячних станцій</p>
+      <p class="kp-contacts" id="kp-contacts">тел.: +380 63 942 65 09 &nbsp;•&nbsp; email: kirichenko.escore@gmail.com</p>
+
+      <table class="kp-table kp-meta">
+        <tbody>
+          <tr><td id="kp-num"></td><td id="kp-doc-date"></td></tr>
+        </tbody>
+      </table>
+
+      <table class="kp-table">
+        <tbody id="kp-rows"></tbody>
+      </table>
+
+      <table class="kp-table kp-total">
+        <tbody id="kp-total-rows"></tbody>
+      </table>
+
+      <div class="kp-note">
+        <p class="kp-note-title">Примітка:</p>
+        <p class="kp-note-lead">• Дана комерційна пропозиція є попередньою та розрахована на основі даних</p>
+        <p>• До вартості станції включено стандартний комплект кабельної продукції обв'язки сонячних панелей та підключення до інвертора.</p>
+        <p>• Прокладка кабелю від інвертора до точки підключення, (електрощитової/лічильника) до розрахунку не входить — її довжина та вартість визначаються після виїзду фахівця на об'єкт або надання точної відстані та маршруту прокладки.</p>
+        <p>• Остаточна комплектація обладнання, перелік матеріалів (включно з додатковим кабелем, кріпленням, автоматикою) та підсумкова вартість можуть бути скориговані за результатами технічного огляду об'єкта.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="data.js"></script>
+<script src="calculator.js"></script>
+<script src="storage.js"></script>
+<script src="geometry.js"></script>
+<script src="maps-loader.js"></script>
+<script src="app.js"></script>
+<script src="dani.js"></script>
+<script src="logo.js"></script>
+<script src="panels.js"></script>
+<script src="production.js"></script>
+<script src="kp.js"></script>
+</body>
+</html>

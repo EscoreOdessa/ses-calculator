@@ -1,0 +1,311 @@
+:root {
+  --brand: #05564d;
+  --brand-light: #e7f2f0;
+  --border: #d7dee0;
+  --text: #1f2a2e;
+  --muted: #66787c;
+  --warn-bg: #fff4e5;
+  --warn-text: #8a5a00;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  color: var(--text);
+  background: #f5f7f7;
+}
+
+header.topbar {
+  background: var(--brand);
+  color: white;
+  padding: 14px 24px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+nav.tabs {
+  display: flex;
+  gap: 2px;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  overflow-x: auto;
+}
+
+nav.tabs button {
+  border: none;
+  background: transparent;
+  padding: 14px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--muted);
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+
+nav.tabs button.active {
+  color: var(--brand);
+  border-bottom-color: var(--brand);
+  font-weight: 600;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+.card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.card h2 {
+  margin: 0 0 16px;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--brand);
+}
+
+.field {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.field label { font-size: 14px; color: var(--text); }
+
+.field input, .field select {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  width: 100%;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 14px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.row:last-child { border-bottom: none; }
+.row .label { color: var(--muted); }
+.row .value { font-weight: 600; }
+
+.row.total {
+  font-size: 18px;
+  padding-top: 12px;
+  border-top: 2px solid var(--brand);
+  margin-top: 6px;
+}
+
+.row.total .value { color: var(--brand); }
+
+.warning {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.placeholder {
+  color: var(--muted);
+  font-size: 14px;
+  padding: 40px 0;
+  text-align: center;
+}
+
+.hint { font-size: 12px; color: var(--muted); margin-top: -6px; margin-bottom: 12px; }
+
+/* --- Дані: редаговані таблиці --- */
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn {
+  display: inline-block;
+  background: var(--brand-light);
+  color: var(--brand);
+  border: 1px solid var(--brand);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn:hover { background: var(--brand); color: white; }
+
+.btn-danger { border-color: #b3402c; color: #b3402c; }
+.btn-danger:hover { background: #b3402c; color: white; }
+
+table.dani-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+table.dani-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+table.dani-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid #eef1f1;
+}
+
+table.dani-table input, table.dani-table select {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+table.dani-table input[type="number"] { width: 90px; }
+
+.row-del {
+  background: none;
+  border: none;
+  color: #b3402c;
+  cursor: pointer;
+  font-size: 15px;
+  padding: 2px 6px;
+}
+
+/* --- КП (повторює верстку КП_AppsScript.gs: лого окремо на білому, зелена
+   плашка тільки під заголовком — інакше бірюзове кільце лого зливається
+   з фоном плашки, того самого кольору) --- */
+.kp-doc {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+.kp-logo-row {
+  padding: 22px 20px 10px;
+  text-align: center;
+}
+
+.kp-logo-row img { height: 40px; }
+
+.kp-band {
+  background: var(--brand);
+  color: white;
+  font-size: 17px;
+  font-weight: 700;
+  text-align: center;
+  padding: 12px 16px;
+  letter-spacing: 0.02em;
+}
+
+.kp-client {
+  text-align: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--brand);
+  margin: 14px 0 2px;
+}
+
+.kp-company {
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+  margin: 0 0 2px;
+}
+
+.kp-contacts {
+  text-align: center;
+  color: var(--muted);
+  font-size: 10px;
+  margin: 0 0 16px;
+}
+
+.kp-table {
+  width: calc(100% - 48px);
+  margin: 0 24px 6px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.kp-table td { padding: 6px 4px; font-size: 13px; }
+.kp-table .kp-label { color: var(--text); }
+.kp-table .kp-value { text-align: center; font-weight: 600; }
+
+/* Три окремі <table> (метадані, параметри, вартість) інакше рахують ширину
+   колонок кожна сама по собі (за найдовшим текстом у своїй таблиці) — через
+   це друга колонка "з'їжджала" між таблицями. Фіксуємо однакову ширину колонок
+   для основних таблиць (без kp-meta — там лише один рядок, вирівнювати нема з чим). */
+.kp-table:not(.kp-meta) td:first-child { width: 62%; }
+.kp-table:not(.kp-meta) td:last-child { width: 38%; }
+
+.kp-meta { margin-top: 4px; margin-bottom: 14px; }
+.kp-meta td:first-child { text-align: left; color: var(--muted); font-size: 12px; }
+.kp-meta td:last-child { text-align: center; color: var(--muted); font-size: 12px; }
+
+tr.kp-section td {
+  font-weight: 700;
+  background: #e6f0ee;
+  text-align: center;
+  font-size: 13px;
+}
+
+.kp-total { border-top: none; margin-top: 4px; }
+.kp-total tr.kp-grand td { font-size: 15px; font-weight: 700; background: #fff3cd; }
+
+.kp-note {
+  text-align: left;
+  color: var(--text);
+  font-size: 12px;
+  padding: 14px 24px 20px;
+  line-height: 1.5;
+}
+
+.kp-note p { margin: 0 0 10px; }
+.kp-note p:last-child { margin-bottom: 0; }
+
+.kp-note-title {
+  font-weight: 700;
+  color: var(--brand);
+  font-size: 13px;
+}
+
+.kp-note-lead {
+  font-weight: 700;
+  color: var(--brand);
+}
+
+.no-print { }
+
+@media print {
+  header.topbar, nav.tabs, .no-print { display: none !important; }
+  body { background: white; }
+  main { max-width: 100%; padding: 0; margin: 0; }
+  .kp-doc { border: none; max-width: 100%; }
+  .kp-band, tr.kp-section td, .kp-total tr.kp-grand td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
