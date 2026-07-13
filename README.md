@@ -5,7 +5,7 @@
 ---
 
 ## English
-
+file:///Users/escoreimac2escoreimac2/Claude/Projects/For%20Sales%20Department%20-%20Calculation%20of%20the%20Power%20and%20Price%20in%20the%20First%20Communication%20with%20Client/calculator_site_sales_department/index.html
 A lightweight, static web tool that helps ESCORE sales managers give a client an instant, ballpark power and price estimate for a solar power station (SES) during the very first phone call — no engineer needed.
 
 ### What it does
