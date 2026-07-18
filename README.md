@@ -1,141 +1,147 @@
-# SES Calculator — Power & Price Estimator / Калькулятор СЕС — потужність і ціна
+SES Calculator — Power & Price Estimator / Калькулятор СЕС — потужність і ціна
+English | Українська
 
-[English](#english) | [Українська](#українська)
+Live tool: https://ses-calculator.anna-escore.workers.dev/
 
----
 
-## English
-file:///Users/escoreimac2escoreimac2/Claude/Projects/For%20Sales%20Department%20-%20Calculation%20of%20the%20Power%20and%20Price%20in%20the%20First%20Communication%20with%20Client/calculator_site_sales_department/index.html
+English
 A lightweight, static web tool that helps ESCORE sales managers give a client an instant, ballpark power and price estimate for a solar power station (SES) during the very first phone call — no engineer needed.
-
-### What it does
-
+What it does
 The tool is organized into five tabs:
 
-- **Калькулятор (Calculator)** — from a client's monthly electricity consumption (kWh), estimates daily / day / night consumption, target station power, the closest matching DEYE inverter, panel count, an indicative price, battery bank sizing for hybrid/autonomy setups, and mounting cost. Ends with a total price in USD and UAH.
-- **Дані (Data)** — editable reference tables: inverter lineup, price-per-kW matrix (by station type / roof or ground / VAT / power), roof & mounting types, and the LV/HV battery catalogs. Edits are saved locally in the browser; Export/Import JSON lets you back up a data set or move it to another computer.
-- **Розкладка панелей (Panel layout)** — search an address on a Google Map, trace the roof outline, and the tool auto-arranges the panel count computed on the Calculator tab (filling south-facing rows first, since they get the most sun). Save a clean, centered 2D PNG diagram to show the client.
-- **Виробництво електроенергії (Energy production)** — estimated monthly/annual energy yield from the free PVGIS API (European Commission), using the same roof-tilt logic as the layout tool (snapped to the mounting angles actually available: 15° / 20° / 30°).
-- **КП (Commercial proposal)** — generates a branded, printable commercial proposal (print → save as PDF) from the current calculation.
+Калькулятор (Calculator) — from a client's monthly electricity consumption (kWh), estimates daily / day / night consumption, target station power, the closest matching inverter (SolaX Power for grid-tied, DEYE for hybrid), panel count, an indicative price, battery bank sizing for hybrid/autonomy setups, and mounting cost. Any of inverter power / panel power / battery capacity can be overridden manually (e.g. the client already specified their own equipment) — whatever's left blank is still computed automatically. Ends with a total price in USD and UAH.
+Дані (Data) — editable reference tables: inverter lineup, price-per-kW matrix (by station type / roof or ground / VAT / power), panel price per watt, roof & mounting types, and the LV/HV battery catalogs. Edits are saved locally in the browser; Export/Import JSON lets you back up a data set or move it to another computer.
+Розкладка панелей (Panel layout) — search an address on a Google Map, trace the roof outline, and the tool auto-arranges the panel count computed on the Calculator tab (filling south-facing rows first, since they get the most sun). Save a clean, centered 2D PNG diagram to show the client.
+Виробництво електроенергії (Energy production) — estimated monthly/annual energy yield from the free PVGIS API (European Commission), using the same roof-tilt logic as the layout tool (snapped to the mounting angles actually available: 15° / 20° / 30°).
+КП (Commercial proposal) — generates a branded, printable commercial proposal (print → save as PDF) from the current calculation.
+Getting started
+This is a static site: no build step, no server, no npm install. Sales managers should just use the live link above — nothing to install.
 
-### Getting started
+For local development:
 
-This is a static site: no build step, no server, no npm install.
+Clone or download this repository.
+Open index.html directly in a browser — it works straight from file://.
+Configuration
+Two one-time setup values live at the top of panels.js:
 
-1. Clone or download this repository.
-2. Open `index.html` directly in a browser — it works straight from `file://`.
+MAPS_API_KEY — a Google Maps JavaScript API key (Maps JavaScript API + Geocoding API enabled), used by the "Panel layout" and "Energy production" tabs for address search and the map. Step-by-step setup: Налаштування_Google_Cloud.md.
+PVGIS_PROXIES — PVGIS (the free EU solar-irradiation service) doesn't send CORS headers, so browser requests need a small proxy in front of it. A dedicated Cloudflare Worker (pvgis-proxy-worker.js) is deployed and listed first; a few free public CORS proxies are kept after it as a fallback chain in case the dedicated Worker is ever down. Setup notes: Налаштування_PVGIS_Proxy.md.
 
-To share it with the whole team, host the folder anywhere that serves static files (GitHub Pages, any web host — see [Deployment](#deployment) below).
+Both "Panel layout" and "Energy production" also share a small localStorage cache of PVGIS responses (30-day TTL) — recalculating the same address is instant and doesn't touch the network at all.
+Data & storage
+Reference data (prices, inverters, batteries, roof types, panel price) ships with sensible defaults in data.js — these are the numbers Anna maintains centrally. Anything edited on the "Дані" tab is saved only in that browser's localStorage and does not sync automatically between devices or users; if a manager's local edits get out of sync with the current prices, the "Скинути до початкових" (Reset) button on the "Дані" tab restores exactly what's shipped in data.js. Calculation constants (day/night split, panel wattage, markups, etc.) are never persisted from localStorage/import — they always come from the current code, so a code update always takes effect even for managers with old saved data.
+Deployment
+Currently hosted as a Cloudflare Worker with static assets (free plan): https://ses-calculator.anna-escore.workers.dev/ — deployed via the Cloudflare dashboard (Workers & Pages → Create Application → direct upload of the site folder/zip), no Git connection required for redeploys. To publish an update, zip the folder and re-upload it to the same Worker project in the Cloudflare dashboard.
 
-### Configuration
+Alternatively, this repo can be published on GitHub Pages:
 
-Two one-time setup values live at the top of `panels.js`:
+Push this repository to GitHub.
+In the repo's Settings → Pages, set the source to the main branch, root folder.
+Share the resulting https://<org>.github.io/<repo>/ URL with the sales team.
+Project structure
+File
+Purpose
+index.html
+Page shell and tab navigation
+style.css
+Styling
+data.js
+Default reference data (inverters, prices, roof types, batteries)
+calculator.js
+Pure calculation logic (power / price / battery sizing)
+storage.js
+localStorage persistence for edited reference data
+app.js
+"Калькулятор" tab wiring
+dani.js
+"Дані" tab (editable reference tables)
+geometry.js
+Panel-layout geometry (point-in-polygon, row sorting, tilt snapping)
+maps-loader.js
+Google Maps script loader
+panels.js
+"Розкладка панелей" tab + shared PVGIS fetch/cache helper
+production.js
+"Виробництво електроенергії" tab
+kp.js
+"КП" (commercial proposal) tab
+logo.js
+Base64-embedded company logo
+pvgis-proxy-worker.js
+Optional Cloudflare Worker source for a self-hosted PVGIS proxy
 
-- **`MAPS_API_KEY`** — a Google Maps JavaScript API key (Maps JavaScript API + Geocoding API enabled), used by the "Panel layout" and "Energy production" tabs for address search and the map. Step-by-step setup: `Налаштування_Google_Cloud.md`.
-- **`PVGIS_PROXIES`** — PVGIS (the free EU solar-irradiation service) doesn't send CORS headers, so browser requests need a small proxy in front of it. The array currently lists a few free public CORS proxies tried in order as a fallback chain. For a more reliable setup, deploy your own free Cloudflare Worker (code and instructions included: `pvgis-proxy-worker.js`, `Налаштування_PVGIS_Proxy.md`) and put its URL first in the list.
+Company
+Built for internal use by ESCORE — solar power station installer, Odesa, Ukraine.
 
-Both "Panel layout" and "Energy production" also share a small **localStorage cache** of PVGIS responses (30-day TTL) — recalculating the same address is instant and doesn't touch the network at all.
 
-### Data & storage
-
-Reference data (prices, inverters, batteries, roof types) ships with sensible defaults in `data.js`. Anything edited on the "Дані" tab is saved only in that browser's `localStorage` — it does **not** sync automatically between devices or users. Use the Export/Import JSON buttons on the "Дані" tab to move a customized data set between machines.
-
-### Deployment
-
-To publish on GitHub Pages:
-
-1. Push this repository to GitHub.
-2. In the repo's **Settings → Pages**, set the source to the `main` branch, root folder.
-3. Share the resulting `https://<org>.github.io/<repo>/` URL with the sales team.
-
-### Project structure
-
-| File | Purpose |
-|---|---|
-| `index.html` | Page shell and tab navigation |
-| `style.css` | Styling |
-| `data.js` | Default reference data (inverters, prices, roof types, batteries) |
-| `calculator.js` | Pure calculation logic (power / price / battery sizing) |
-| `storage.js` | localStorage persistence for edited reference data |
-| `app.js` | "Калькулятор" tab wiring |
-| `dani.js` | "Дані" tab (editable reference tables) |
-| `geometry.js` | Panel-layout geometry (point-in-polygon, row sorting, tilt snapping) |
-| `maps-loader.js` | Google Maps script loader |
-| `panels.js` | "Розкладка панелей" tab + shared PVGIS fetch/cache helper |
-| `production.js` | "Виробництво електроенергії" tab |
-| `kp.js` | "КП" (commercial proposal) tab |
-| `logo.js` | Base64-embedded company logo |
-| `pvgis-proxy-worker.js` | Optional Cloudflare Worker source for a self-hosted PVGIS proxy |
-
-### Company
-
-Built for internal use by **ESCORE** — solar power station installer, Odesa, Ukraine.
-
----
-
-## Українська
-
+Українська
 Легкий статичний веб-інструмент, який допомагає менеджерам відділу продажів ESCORE одразу, ще під час першого дзвінка клієнту, озвучити орієнтовну потужність і ціну сонячної станції (СЕС) — без залучення технічного фахівця.
 
-### Що він робить
-
+Робоче посилання: https://ses-calculator.anna-escore.workers.dev/
+Що він робить
 Інструмент складається з п'яти вкладок:
 
-- **Калькулятор** — за місячним споживанням електроенергії клієнта (кВт·год) рахує добове/денне/нічне споживання, цільову потужність станції, найближчий за потужністю інвертор DEYE, кількість панелей, орієнтовну ціну, підбір комплекту АКБ для гібридних станцій з автономією, вартість кріплень і підсумкову ціну в $ та грн.
-- **Дані** — редаговані довідкові таблиці: лінійка інверторів, матриця цін за кВт (залежно від типу станції / дах чи земля / ПДВ / потужності), типи даху й кріплень, каталоги акумуляторів LV/HV. Зміни зберігаються локально в браузері; кнопки Експорт/Імпорт JSON дозволяють зробити резервну копію або перенести дані на інший комп'ютер.
-- **Розкладка панелей** — пошук адреси на Google-карті, обведення контуру даху, після чого інструмент автоматично розкладає кількість панелей, порахованих на вкладці «Калькулятор» (заповнюючи спочатку південні ряди — там найбільше сонця). Готову охайну 2D-картинку (PNG) можна зберегти й показати клієнту.
-- **Виробництво електроенергії** — орієнтовне помісячне/річне вироблення електроенергії за даними безкоштовного сервісу PVGIS (Європейська комісія), з тим самим кутом нахилу кріплень, що й у розкладці панелей (округленим до реально доступних кутів: 15° / 20° / 30°).
-- **КП** — автоматично формує брендовану комерційну пропозицію для друку (друк → зберегти як PDF) на основі поточного розрахунку.
+Калькулятор — за місячним споживанням електроенергії клієнта (кВт·год) рахує добове/денне/нічне споживання, цільову потужність станції, найближчий за потужністю інвертор (SolaX Power для мережевих, DEYE для гібридних), кількість панелей, орієнтовну ціну, підбір комплекту АКБ для гібридних станцій з автономією, вартість кріплень і підсумкову ціну в $ та грн. Потужність інвертора, потужність панелей і ємність АКБ можна ввести вручну (якщо клієнт вже сам визначився з обладнанням) — усе, що лишили порожнім, і далі рахується автоматично.
+Дані — редаговані довідкові таблиці: лінійка інверторів, матриця цін за кВт (залежно від типу станції / дах чи земля / ПДВ / потужності), ціна панелі за Вт, типи даху й кріплень, каталоги акумуляторів LV/HV. Зміни зберігаються локально в браузері; кнопки Експорт/Імпорт JSON дозволяють зробити резервну копію або перенести дані на інший комп'ютер.
+Розкладка панелей — пошук адреси на Google-карті, обведення контуру даху, після чого інструмент автоматично розкладає кількість панелей, порахованих на вкладці «Калькулятор» (заповнюючи спочатку південні ряди — там найбільше сонця). Готову охайну 2D-картинку (PNG) можна зберегти й показати клієнту.
+Виробництво електроенергії — орієнтовне помісячне/річне вироблення електроенергії за даними безкоштовного сервісу PVGIS (Європейська комісія), з тим самим кутом нахилу кріплень, що й у розкладці панелей (округленим до реально доступних кутів: 15° / 20° / 30°).
+КП — автоматично формує брендовану комерційну пропозицію для друку (друк → зберегти як PDF) на основі поточного розрахунку.
+Швидкий старт
+Це статичний сайт: без збірки, без сервера, без встановлення залежностей. Менеджерам достатньо робочого посилання вище — нічого встановлювати не треба.
 
-### Швидкий старт
+Для локальної розробки:
 
-Це статичний сайт: без збірки, без сервера, без встановлення залежностей.
+Склонуй або завантаж цей репозиторій.
+Відкрий index.html прямо в браузері — працює навіть з file://, без веб-сервера.
+Налаштування
+Два одноразові параметри знаходяться на початку файлу panels.js:
 
-1. Склонуй або завантаж цей репозиторій.
-2. Відкрий `index.html` прямо в браузері — працює навіть з `file://`, без веб-сервера.
+MAPS_API_KEY — ключ Google Maps JavaScript API (з увімкненими Maps JavaScript API + Geocoding API), потрібен вкладкам «Розкладка панелей» і «Виробництво електроенергії» для пошуку адреси й карти. Покрокова інструкція: Налаштування_Google_Cloud.md.
+PVGIS_PROXIES — сервіс PVGIS (безкоштовні дані інсоляції від ЄС) не віддає CORS-заголовки, тому запити з браузера потребують невеликого проксі-сервера. Власний Cloudflare Worker (pvgis-proxy-worker.js) уже розгорнутий і стоїть першим у списку; кілька безкоштовних публічних CORS-проксі лишені після нього як запасні на випадок, якщо власний воркер ляже. Деталі: Налаштування_PVGIS_Proxy.md.
 
-Щоб дати доступ усій команді, розмісти папку на будь-якому статичному хостингу (GitHub Pages, будь-який веб-хостинг — див. розділ [Розгортання](#розгортання) нижче).
+Вкладки «Розкладка панелей» і «Виробництво електроенергії» також мають спільний кеш відповідей PVGIS у localStorage (на 30 днів) — повторний розрахунок тієї самої адреси відбувається миттєво, без звернення до мережі.
+Дані та зберігання
+Довідкові дані (ціни, інвертори, акумулятори, типи даху, ціна панелей) постачаються з актуальними значеннями у файлі data.js — це ті цифри, які централізовано підтримує Anna. Усе, що відредаговано на вкладці «Дані», зберігається лише в localStorage конкретного браузера й не синхронізується автоматично між пристроями чи користувачами; якщо в когось локальні правки розійшлися з актуальними цінами — кнопка «Скинути до початкових» на вкладці «Дані» повертає рівно те, що зашито в data.js. Константи розрахунку (частка дня/ночі, потужність панелі, націнки тощо) із localStorage/імпорту НІКОЛИ не підтягуються — вони завжди беруться з поточного коду, тому оновлення коду діє одразу навіть для тих, у кого лишились старі збережені дані.
+Розгортання
+Зараз сайт розміщено як Cloudflare Worker зі статичними файлами (безкоштовний план): https://ses-calculator.anna-escore.workers.dev/ — розгорнуто через панель Cloudflare (Workers & Pages → Create Application → пряме завантаження папки сайту/zip-архіву), Git для оновлень не потрібен. Щоб опублікувати оновлення — зібрати папку в zip і перезалити його в той самий проєкт Worker у панелі Cloudflare.
 
-### Налаштування
+Альтернативно цей репозиторій можна опублікувати на GitHub Pages:
 
-Два одноразові параметри знаходяться на початку файлу `panels.js`:
+Заливь цей репозиторій на GitHub.
+У налаштуваннях репозиторію Settings → Pages вкажи джерело — гілка main, коренева папка.
+Поділись отриманим посиланням https://<org>.github.io/<repo>/ з відділом продажів.
+Структура проєкту
+Файл
+Призначення
+index.html
+Каркас сторінки та навігація по вкладках
+style.css
+Стилі
+data.js
+Початкові довідкові дані (інвертори, ціни, типи даху, акумулятори)
+calculator.js
+Чиста логіка розрахунку (потужність / ціна / підбір АКБ)
+storage.js
+Збереження відредагованих довідкових даних у localStorage
+app.js
+Логіка вкладки «Калькулятор»
+dani.js
+Вкладка «Дані» (редаговані довідкові таблиці)
+geometry.js
+Геометрія розкладки панелей (точка-в-полігоні, сортування рядів, підгонка кута)
+maps-loader.js
+Завантажувач скрипта Google Maps
+panels.js
+Вкладка «Розкладка панелей» + спільна функція запиту/кешу PVGIS
+production.js
+Вкладка «Виробництво електроенергії»
+kp.js
+Вкладка «КП» (комерційна пропозиція)
+logo.js
+Логотип компанії, вбудований у base64
+pvgis-proxy-worker.js
+Опційний код Cloudflare Worker для власного PVGIS-проксі
 
-- **`MAPS_API_KEY`** — ключ Google Maps JavaScript API (з увімкненими Maps JavaScript API + Geocoding API), потрібен вкладкам «Розкладка панелей» і «Виробництво електроенергії» для пошуку адреси й карти. Покрокова інструкція: `Налаштування_Google_Cloud.md`.
-- **`PVGIS_PROXIES`** — сервіс PVGIS (безкоштовні дані інсоляції від ЄС) не віддає CORS-заголовки, тому запити з браузера потребують невеликого проксі-сервера. Зараз у списку — кілька безкоштовних публічних CORS-проксі, які пробуються по черзі як резервні варіанти. Для надійнішої роботи розгорни власний безкоштовний Cloudflare Worker (код і інструкція вже готові: `pvgis-proxy-worker.js`, `Налаштування_PVGIS_Proxy.md`) і впиши його адресу першим пунктом у список.
+Компанія
+Розроблено для внутрішнього використання компанією ESCORE — інсталятор сонячних станцій, Одеса.
 
-Вкладки «Розкладка панелей» і «Виробництво електроенергії» також мають спільний **кеш відповідей PVGIS** у localStorage (на 30 днів) — повторний розрахунок тієї самої адреси відбувається миттєво, без звернення до мережі.
-
-### Дані та зберігання
-
-Довідкові дані (ціни, інвертори, акумулятори, типи даху) постачаються з розумними початковими значеннями у файлі `data.js`. Усе, що відредаговано на вкладці «Дані», зберігається лише в `localStorage` конкретного браузера — це **не** синхронізується автоматично між пристроями чи користувачами. Кнопки Експорт/Імпорт JSON на вкладці «Дані» дозволяють перенести налаштований набір даних на інший комп'ютер.
-
-### Розгортання
-
-Щоб опублікувати на GitHub Pages:
-
-1. Заливь цей репозиторій на GitHub.
-2. У налаштуваннях репозиторію **Settings → Pages** вкажи джерело — гілка `main`, коренева папка.
-3. Поділись отриманим посиланням `https://<org>.github.io/<repo>/` з відділом продажів.
-
-### Структура проєкту
-
-| Файл | Призначення |
-|---|---|
-| `index.html` | Каркас сторінки та навігація по вкладках |
-| `style.css` | Стилі |
-| `data.js` | Початкові довідкові дані (інвертори, ціни, типи даху, акумулятори) |
-| `calculator.js` | Чиста логіка розрахунку (потужність / ціна / підбір АКБ) |
-| `storage.js` | Збереження відредагованих довідкових даних у localStorage |
-| `app.js` | Логіка вкладки «Калькулятор» |
-| `dani.js` | Вкладка «Дані» (редаговані довідкові таблиці) |
-| `geometry.js` | Геометрія розкладки панелей (точка-в-полігоні, сортування рядів, підгонка кута) |
-| `maps-loader.js` | Завантажувач скрипта Google Maps |
-| `panels.js` | Вкладка «Розкладка панелей» + спільна функція запиту/кешу PVGIS |
-| `production.js` | Вкладка «Виробництво електроенергії» |
-| `kp.js` | Вкладка «КП» (комерційна пропозиція) |
-| `logo.js` | Логотип компанії, вбудований у base64 |
-| `pvgis-proxy-worker.js` | Опційний код Cloudflare Worker для власного PVGIS-проксі |
-
-### Компанія
-
-Розроблено для внутрішнього використання компанією **ESCORE** — інсталятор сонячних станцій, Одеса.
