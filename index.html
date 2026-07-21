@@ -82,6 +82,23 @@
       <p class="hint">Необов'язково — використовується у «Розкладці панелей» та «Виробництві електроенергії», щоб не вводити адресу двічі.</p>
     </div>
 
+    <div class="card">
+      <h2>Ручний ввід обладнання (якщо клієнт вже знає, що хоче)</h2>
+      <p class="hint">Порожнє поле — розрахунок як завжди (від споживання). Заповнене поле — ціна рахується під цю цифру, решта (що не заповнено) — як завжди.</p>
+      <div class="field">
+        <label for="in-manual-inverter">Потужність інвертора, кВт</label>
+        <input type="number" id="in-manual-inverter" min="0" step="0.1" placeholder="авто" />
+      </div>
+      <div class="field">
+        <label for="in-manual-panel">Потужність панелей, кВт</label>
+        <input type="number" id="in-manual-panel" min="0" step="0.1" placeholder="авто" />
+      </div>
+      <div class="field" id="field-manual-akb">
+        <label for="in-manual-akb">Ємність АКБ, кВт·год</label>
+        <input type="number" id="in-manual-akb" min="0" step="0.1" placeholder="авто" />
+      </div>
+    </div>
+
     <div id="calc-warnings"></div>
 
     <div class="card">
@@ -94,14 +111,16 @@
 
     <div class="card">
       <h2>Підбір обладнання</h2>
-      <div class="row"><span class="label">Підібраний інвертор DEYE, кВт</span><span class="value" id="out-inverter"></span></div>
-      <div class="row"><span class="label">Панелі (620 Вт/шт)</span><span class="value" id="out-panels"></span></div>
+      <div class="row"><span class="label">Підібраний інвертор, кВт</span><span class="value" id="out-inverter"></span></div>
+      <div class="row"><span class="label">Панелі (615 Вт/шт)</span><span class="value" id="out-panels"></span></div>
     </div>
 
-    <div class="card">
+    <div class="card" style="display:none">
       <h2>Орієнтовна ціна станції</h2>
-      <div class="row"><span class="label">Ціна за кВт, $</span><span class="value" id="out-priceperkw"></span></div>
-      <div class="row"><span class="label">Орієнтовна ціна, $ (без АКБ)</span><span class="value" id="out-stationprice"></span></div>
+      <div class="row"><span class="label">Ціна за кВт (інвертор, матеріали, роботи), $</span><span class="value" id="out-priceperkw"></span></div>
+      <div class="row"><span class="label">Станція (інвертор, матеріали, роботи), $</span><span class="value" id="out-stationprice"></span></div>
+      <div class="row"><span class="label">Ціна панелі, $/Вт</span><span class="value" id="out-panelpricew"></span></div>
+      <div class="row"><span class="label">Вартість панелей, $</span><span class="value" id="out-panelcost"></span></div>
     </div>
 
     <div class="card" id="card-akb">
@@ -123,6 +142,7 @@
 
     <div class="card">
       <h2>Разом по СЕС</h2>
+      <div class="row total"><span class="label">Ціна за кВт, $</span><span class="value" id="out-totalperkw"></span></div>
       <div class="row total"><span class="label">Сумарна ціна СЕС, $</span><span class="value" id="out-totalusd"></span></div>
       <div class="row total"><span class="label">Сумарна ціна СЕС, грн</span><span class="value" id="out-totaluah"></span></div>
     </div>
@@ -145,6 +165,7 @@
 
     <div class="card">
       <h2>Ціни станцій (вид / розташування / оплата / потужність → $/кВт)</h2>
+      <p class="hint">Колонка «Матеріали+робота» — загальна сума (не за кВт!) для «Ручний ввід обладнання»: інвертор (нижче) + ця сума замінюють орієнтовну $/кВт, коли менеджер вручну задає потужність інвертора.</p>
       <table class="dani-table" id="dani-prices-table"></table>
       <button class="btn" id="dani-add-price">+ Додати рядок</button>
     </div>
@@ -156,14 +177,37 @@
     </div>
 
     <div class="card">
-      <h2>Інвертори DEYE, кВт</h2>
+      <h2>Інвертори, кВт</h2>
       <div class="field">
-        <label>Мережеві (через кому)</label>
+        <label>Мережеві — SolaX Power (через кому)</label>
         <input type="text" id="dani-inv-mesh" />
       </div>
       <div class="field">
-        <label>Гібридні (через кому)</label>
+        <label>Гібридні — DEYE (через кому)</label>
         <input type="text" id="dani-inv-hybrid" />
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Ціни інверторів (для «Ручний ввід обладнання»)</h2>
+      <p class="hint">Ціна конкретного інвертора + рядок «Матеріали+робота» вище використовуються замість орієнтовної $/кВт, коли менеджер вручну задає потужність інвертора. Потужність (кВт) має збігатись зі списком інверторів вище.</p>
+      <h3>Мережеві — SolaX Power</h3>
+      <table class="dani-table" id="dani-inv-mesh-price-table"></table>
+      <button class="btn" id="dani-add-inv-mesh-price">+ Додати рядок</button>
+      <h3>Гібридні — DEYE</h3>
+      <table class="dani-table" id="dani-inv-hybrid-price-table"></table>
+      <button class="btn" id="dani-add-inv-hybrid-price">+ Додати рядок</button>
+    </div>
+
+    <div class="card">
+      <h2>Ціна панелей (615 Вт/шт)</h2>
+      <div class="field">
+        <label>Ціна за Вт, без ПДВ, $</label>
+        <input type="number" id="dani-panel-novat" step="any" min="0" />
+      </div>
+      <div class="field">
+        <label>Ціна за Вт, з ПДВ, $</label>
+        <input type="number" id="dani-panel-vat" step="any" min="0" />
       </div>
     </div>
 
@@ -232,7 +276,6 @@
     <div class="card">
       <h2>Виробництво електроенергії (PVGIS)</h2>
       <p class="hint">Орієнтовне річне та помісячне виробництво станції за даними безкоштовного сервісу PVGIS (Європейська комісія). Кут кріплень береться той самий, що і в «Розкладці панелей» (15/20/30°, підігнаний під ідеальний).</p>
-      <p class="hint">PVGIS блокує прямі запити з браузера — потрібен невеликий безкоштовний проксі (заповнюється в <code>production.js</code>, рядок <code>PVGIS_PROXY</code>). Інструкція: «Налаштування_PVGIS_Proxy.md».</p>
 
       <div class="btn-row" style="margin-bottom:10px">
         <input type="text" id="pv-addr" placeholder="Адреса або координати" style="flex:1;min-width:200px;padding:7px 10px;border:1px solid var(--border);border-radius:6px" />
@@ -262,7 +305,7 @@
       </div>
       <div class="kp-band">КОМЕРЦІЙНА ПРОПОЗИЦІЯ</div>
       <p class="kp-client" id="kp-client"></p>
-      <p class="kp-company">ESCORE — інсталяція сонячних станцій</p>
+      <p class="kp-company">ESCORE — Сонячні електростанції під ключ</p>
       <p class="kp-contacts" id="kp-contacts">тел.: +380 63 942 65 09 &nbsp;•&nbsp; email: kirichenko.escore@gmail.com</p>
 
       <table class="kp-table kp-meta">

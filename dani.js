@@ -111,10 +111,12 @@
           { key: "vat", label: "Оплата", type: "select", opts: [["true", "ПДВ"], ["false", ""]] },
           { key: "power", label: "Потужність, кВт", type: "number" },
           { key: "price", label: "Ціна, $/кВт", type: "number" },
+          { key: "materialsLabor", label: "Матеріали+робота (сума, не за кВт), $", type: "number" },
         ],
         data.prices,
         (i, key, val) => {
           if (key === "vat") data.prices[i][key] = val === "true";
+          else if (key === "materialsLabor") data.prices[i][key] = val === "" ? null : num(val);
           else if (key === "power" || key === "price") data.prices[i][key] = num(val);
           else data.prices[i][key] = val;
           onDataChanged();
@@ -159,6 +161,42 @@
       // --- Інвертори ---
       el("dani-inv-mesh").value = data.invertersMesh.join(", ");
       el("dani-inv-hybrid").value = data.invertersHybrid.join(", ");
+
+      // --- Ціни інверторів (Ручний ввід обладнання) ---
+      const invPriceCols = [
+        { key: "kw", label: "Потужність, кВт", type: "number" },
+        { key: "priceVat", label: "Ціна з ПДВ, $", type: "number" },
+        { key: "priceNoVat", label: "Ціна без ПДВ, $", type: "number" },
+      ];
+      const invPriceOnChange = (arrName) => (i, key, val) => {
+        data[arrName][i][key] = val === "" ? null : num(val, null);
+        onDataChanged();
+      };
+      const invPriceOnDelete = (arrName) => (i) => {
+        data[arrName].splice(i, 1);
+        renderAll();
+        onDataChanged();
+      };
+      if (!data.inverterPricesMesh) data.inverterPricesMesh = [];
+      if (!data.inverterPricesHybrid) data.inverterPricesHybrid = [];
+      renderTable(
+        "dani-inv-mesh-price-table",
+        invPriceCols,
+        data.inverterPricesMesh,
+        invPriceOnChange("inverterPricesMesh"),
+        invPriceOnDelete("inverterPricesMesh")
+      );
+      renderTable(
+        "dani-inv-hybrid-price-table",
+        invPriceCols,
+        data.inverterPricesHybrid,
+        invPriceOnChange("inverterPricesHybrid"),
+        invPriceOnDelete("inverterPricesHybrid")
+      );
+
+      // --- Ціна панелей ---
+      el("dani-panel-novat").value = data.panelPrice.noVat;
+      el("dani-panel-vat").value = data.panelPrice.vat;
 
       // --- Акумулятори LV ---
       renderTable(
@@ -233,9 +271,31 @@
       onDataChanged();
     });
 
+    // --- Ціна панелей: збереження при зміні ---
+    el("dani-panel-novat").addEventListener("change", () => {
+      const data = getData();
+      data.panelPrice.noVat = num(el("dani-panel-novat").value, data.panelPrice.noVat);
+      onDataChanged();
+    });
+    el("dani-panel-vat").addEventListener("change", () => {
+      const data = getData();
+      data.panelPrice.vat = num(el("dani-panel-vat").value, data.panelPrice.vat);
+      onDataChanged();
+    });
+
     // --- Кнопки додавання рядків ---
     el("dani-add-price").addEventListener("click", () => {
       getData().prices.push({ type: "мережева", location: "дах", vat: false, power: 50, price: 0 });
+      renderAll();
+      onDataChanged();
+    });
+    el("dani-add-inv-mesh-price").addEventListener("click", () => {
+      getData().inverterPricesMesh.push({ kw: 0, priceVat: 0, priceNoVat: 0 });
+      renderAll();
+      onDataChanged();
+    });
+    el("dani-add-inv-hybrid-price").addEventListener("click", () => {
+      getData().inverterPricesHybrid.push({ kw: 0, priceVat: 0, priceNoVat: 0 });
       renderAll();
       onDataChanged();
     });

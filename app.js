@@ -72,6 +72,9 @@
       autonomyHours: parseFloat(el("in-hours").value) || 0,
       roofType: el("in-roof").value,
       exchangeRate: parseFloat(el("in-rate").value) || null,
+      manualInverterKw: parseFloat(el("in-manual-inverter").value) || null,
+      manualPanelKw: parseFloat(el("in-manual-panel").value) || null,
+      manualAkbKwh: parseFloat(el("in-manual-akb").value) || null,
     };
   }
 
@@ -79,6 +82,7 @@
     const input = readInput();
     const isHybrid = input.stationType === "гібридна";
     el("field-autonomy").style.display = isHybrid ? "" : "none";
+    el("field-manual-akb").style.display = isHybrid ? "" : "none";
     el("card-akb").style.display = isHybrid ? "" : "none";
 
     const r = SesCalc.calculate(input, currentData);
@@ -89,14 +93,22 @@
     el("out-night").textContent = fmtNum(r.nightKwh);
     el("out-target").textContent = fmtNum(r.targetKw);
 
-    el("out-inverter").textContent = r.inverterKw + " кВт";
-    el("out-panels").textContent = `${r.panelCount} шт × 620 Вт ≈ ${fmtNum(r.panelTotalKw)} кВт`;
+    const inverterBrand = isHybrid ? "DEYE" : "SolaX Power";
+    const inverterSizeText = r.inverterModuleCount > 1
+      ? `${r.inverterModuleCount} × ${r.inverterUnitKw} кВт (паралель) = ${r.inverterKw} кВт`
+      : `${r.inverterKw} кВт`;
+    el("out-inverter").textContent = `${inverterBrand}, ${inverterSizeText}`
+      + (r.manualInverterUsed ? " (вручну)" : "")
+      + (r.stationPriceSource === "itemized" ? " · ціна за прайсом інвертора" : "");
+    el("out-panels").textContent = `${r.panelCount} шт × ${r.panelWattage} Вт ≈ ${fmtNum(r.panelTotalKw)} кВт` + (r.manualPanelUsed ? " (вручну)" : "");
 
     el("out-priceperkw").textContent = r.pricePerKw !== null ? fmtUsd(r.pricePerKw) : "уточнити у менеджера";
     el("out-stationprice").textContent = r.stationPrice !== null ? fmtUsd(r.stationPrice) : "уточнити у менеджера";
+    el("out-panelpricew").textContent = r.panelPricePerW !== null ? "$" + r.panelPricePerW.toFixed(2) : "—";
+    el("out-panelcost").textContent = r.panelCost !== null ? fmtUsd(r.panelCost) : "—";
 
     if (isHybrid && r.akb) {
-      el("out-akbreq").textContent = fmtNum(r.akb.requiredKwh) + " кВт·год";
+      el("out-akbreq").textContent = fmtNum(r.akb.requiredKwh) + " кВт·год" + (r.manualAkbUsed ? " (вручну)" : "");
       el("out-akbbank").textContent = r.akb.bank;
       el("out-akbmodel").textContent = r.akb.model;
       el("out-akbcount").textContent = r.akb.moduleCount + " шт";
@@ -108,6 +120,8 @@
     el("out-mountperpanel").textContent = r.mountPricePerPanel !== null ? fmtUsd(r.mountPricePerPanel) : "—";
     el("out-mounttotal").textContent = r.mountTotal !== null ? fmtUsd(r.mountTotal) : "—";
 
+    const perKw = r.totalUsd !== null && r.panelTotalKw ? r.totalUsd / r.panelTotalKw : null;
+    el("out-totalperkw").textContent = perKw !== null ? fmtUsd(perKw) : "—";
     el("out-totalusd").textContent = r.totalUsd !== null ? fmtUsd(r.totalUsd) : "уточнити у менеджера";
     el("out-totaluah").textContent = r.totalUah !== null ? fmtUah(r.totalUah) : "—";
 
