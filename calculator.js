@@ -163,7 +163,13 @@
       const manualAkbUsed = !!(input.manualAkbKwh && input.manualAkbKwh > 0);
       result.manualAkbUsed = manualAkbUsed;
       const requiredKwh = manualAkbUsed ? input.manualAkbKwh : (input.autonomyHours * dailyKwh / 24); // C29
-      const bank = requiredKwh > c.hvThresholdKwh ? "HV" : "LV"; // C30
+      // Anna 2026-07-21: LV/HV — це фізичне обмеження САМОГО ІНВЕРТОРА (апаратне,
+      // не залежить від потрібної ємності АКБ), тому й вирішується за обраним
+      // inverterKw, а не за requiredKwh (стара версія могла підібрати LV-акумулятор
+      // під HV-only інвертор при невеликій автономії — реальний баг, знайдений Anna
+      // на прикладі 50 кВт). Поріг hvInverterKwThreshold=20: 5/10/15 кВт — LV,
+      // 20 кВт і вище (включно з паралеллю 2×50 і т.д.) — HV.
+      const bank = inverterKw >= c.hvInverterKwThreshold ? "HV" : "LV"; // C30
       const catalog = bank === "HV" ? data.batteriesHV : data.batteriesLV;
 
       // Підбір моделі: мінімальна зайва ємність (без запасу), тай-брейк — менше модулів.
