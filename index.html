@@ -32,6 +32,14 @@
       </div>
 
       <div class="field">
+        <label for="in-mode">Спосіб розрахунку</label>
+        <select id="in-mode">
+          <option value="consumption" selected>За споживанням клієнта</option>
+          <option value="equipment">За бажаним обладнанням клієнта</option>
+        </select>
+      </div>
+
+      <div class="field" id="field-monthly">
         <label for="in-monthly">Місячне споживання, кВт·год</label>
         <input type="number" id="in-monthly" min="0" step="100" placeholder="наприклад, 2500" />
       </div>
@@ -65,7 +73,7 @@
         <input type="number" id="in-hours" value="3" min="0" step="0.5" />
       </div>
 
-      <div class="field">
+      <div class="field" id="field-roof">
         <label for="in-roof">Тип даху / кріплення</label>
         <select id="in-roof"></select>
       </div>
@@ -82,26 +90,26 @@
       <p class="hint">Необов'язково — використовується у «Розкладці панелей» та «Виробництві електроенергії», щоб не вводити адресу двічі.</p>
     </div>
 
-    <div class="card">
-      <h2>Ручний ввід обладнання (якщо клієнт вже знає, що хоче)</h2>
-      <p class="hint">Порожнє поле — розрахунок як завжди (від споживання). Заповнене поле — ціна рахується під цю цифру, решта (що не заповнено) — як завжди.</p>
+    <div class="card" id="card-manual-equipment">
+      <h2>Обладнання, яке хоче клієнт</h2>
+      <p class="hint">Потужність інвертора — обов'язково. Панелі й АКБ — порожнє поле означає, що клієнт не хоче цей компонент: він не рахується і не входить у ціну.</p>
       <div class="field">
-        <label for="in-manual-inverter">Потужність інвертора, кВт</label>
-        <input type="number" id="in-manual-inverter" min="0" step="0.1" placeholder="авто" />
+        <label for="in-manual-inverter">Потужність інвертора, кВт (обов'язково)</label>
+        <input type="number" id="in-manual-inverter" min="0" step="0.1" placeholder="напр. 10" />
       </div>
       <div class="field">
         <label for="in-manual-panel">Потужність панелей, кВт</label>
-        <input type="number" id="in-manual-panel" min="0" step="0.1" placeholder="авто" />
+        <input type="number" id="in-manual-panel" min="0" step="0.1" placeholder="порожньо = без панелей" />
       </div>
       <div class="field" id="field-manual-akb">
         <label for="in-manual-akb">Ємність АКБ, кВт·год</label>
-        <input type="number" id="in-manual-akb" min="0" step="0.1" placeholder="авто" />
+        <input type="number" id="in-manual-akb" min="0" step="0.1" placeholder="порожньо = без АКБ" />
       </div>
     </div>
 
     <div id="calc-warnings"></div>
 
-    <div class="card">
+    <div class="card" id="card-power">
       <h2>Розрахунок потужності</h2>
       <div class="row"><span class="label">Добове споживання, кВт·год</span><span class="value" id="out-daily"></span></div>
       <div class="row"><span class="label">Денне споживання 80%, кВт·год</span><span class="value" id="out-day"></span></div>
@@ -113,28 +121,39 @@
       <h2>Підбір обладнання</h2>
       <div class="row"><span class="label">Підібраний інвертор, кВт</span><span class="value" id="out-inverter"></span></div>
       <div class="row"><span class="label">Панелі (615 Вт/шт)</span><span class="value" id="out-panels"></span></div>
-    </div>
-
-    <div class="card" style="display:none">
-      <h2>Орієнтовна ціна станції</h2>
-      <div class="row"><span class="label">Ціна за кВт (інвертор, матеріали, роботи), $</span><span class="value" id="out-priceperkw"></span></div>
-      <div class="row"><span class="label">Станція (інвертор, матеріали, роботи), $</span><span class="value" id="out-stationprice"></span></div>
-      <div class="row"><span class="label">Ціна панелі, $/Вт</span><span class="value" id="out-panelpricew"></span></div>
-      <div class="row"><span class="label">Вартість панелей, $</span><span class="value" id="out-panelcost"></span></div>
-    </div>
-
-    <div class="card" id="card-akb">
-      <h2>Автономія та комплект АКБ</h2>
-      <div class="row"><span class="label">Потрібна ємність АКБ, кВт·год</span><span class="value" id="out-akbreq"></span></div>
-      <div class="row"><span class="label">Система АКБ (авто: LV / HV)</span><span class="value" id="out-akbbank"></span></div>
-      <div class="row"><span class="label">Підібрана модель АКБ</span><span class="value" id="out-akbmodel"></span></div>
-      <div class="row"><span class="label">Кількість модулів АКБ</span><span class="value" id="out-akbcount"></span></div>
-      <div class="row"><span class="label">Підсумкова ємність АКБ, кВт·год</span><span class="value" id="out-akbtotal"></span></div>
-      <div class="row"><span class="label">BMS / Стійка</span><span class="value" id="out-akbrack"></span></div>
-      <div class="row"><span class="label">Ціна комплекту АКБ, $</span><span class="value" id="out-akbprice"></span></div>
+      <div id="block-akb-select">
+        <div class="row"><span class="label">Потрібна ємність АКБ, кВт·год</span><span class="value" id="out-akbreq"></span></div>
+        <div class="row"><span class="label">Система АКБ (авто: LV / HV)</span><span class="value" id="out-akbbank"></span></div>
+        <div class="row"><span class="label">Підібрана модель АКБ</span><span class="value" id="out-akbmodel"></span></div>
+        <div class="row"><span class="label">Кількість модулів АКБ</span><span class="value" id="out-akbcount"></span></div>
+        <div class="field">
+          <label for="in-manual-akbmodules">Кількість модулів АКБ (вручну, якщо без запасу)</label>
+          <input type="number" id="in-manual-akbmodules" min="1" step="1" placeholder="авто" />
+        </div>
+        <div class="row"><span class="label">Підсумкова ємність АКБ, кВт·год</span><span class="value" id="out-akbtotal"></span></div>
+        <div class="row"><span class="label">BMS / Стійка</span><span class="value" id="out-akbrack"></span></div>
+      </div>
     </div>
 
     <div class="card">
+      <h2>Орієнтовна ціна станції</h2>
+      <div class="field" id="field-install">
+        <label for="in-install">Комплектація</label>
+        <select id="in-install">
+          <option value="1" selected>З монтажем</option>
+          <option value="0">Тільки обладнання</option>
+        </select>
+      </div>
+      <div class="row" id="row-inverterprice"><span class="label">Ціна інвертора, $</span><span class="value" id="out-inverterprice"></span></div>
+      <div class="row" id="row-materialslabor"><span class="label">Матеріали та роботи, $</span><span class="value" id="out-materialslabor"></span></div>
+      <div class="row" style="display:none"><span class="label">Ціна за кВт (інвертор, матеріали, роботи), $</span><span class="value" id="out-priceperkw"></span></div>
+      <div class="row" id="row-stationprice"><span class="label">Станція, $</span><span class="value" id="out-stationprice"></span></div>
+      <div class="row"><span class="label">Ціна панелі, $/Вт</span><span class="value" id="out-panelpricew"></span></div>
+      <div class="row"><span class="label">Вартість панелей, $</span><span class="value" id="out-panelcost"></span></div>
+      <div class="row" id="row-akbprice"><span class="label">Ціна комплекту АКБ, $</span><span class="value" id="out-akbprice"></span></div>
+    </div>
+
+    <div class="card" id="card-mount">
       <h2>Кріплення (монтаж панелей)</h2>
       <div class="row"><span class="label">Ціна кріплення за панель, $</span><span class="value" id="out-mountperpanel"></span></div>
       <div class="row"><span class="label">Вартість кріплень, $</span><span class="value" id="out-mounttotal"></span></div>

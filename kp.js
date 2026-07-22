@@ -13,6 +13,7 @@
 
   const fmtUsd = (n) => (n === null || n === undefined || isNaN(n) ? "—" : "$" + Math.round(n).toLocaleString("en-US"));
   const fmtUah = (n) => (n === null || n === undefined || isNaN(n) ? "—" : Math.round(n).toLocaleString("uk-UA") + " грн");
+  const fmtNum = (n, d = 1) => (n === null || n === undefined || isNaN(n) ? "—" : n.toFixed(d));
   const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
   ready(() => {
@@ -81,17 +82,34 @@
 
       const input = r.input;
       const isHybrid = input.stationType === "гібридна";
+      const isEquipment = r.calcMode === "equipment";
 
       rowsBody.appendChild(sectionRow("Параметри станції"));
       rowsBody.appendChild(row("Тип станції", cap(input.stationType)));
       rowsBody.appendChild(row("Розташування", cap(input.location)));
-      rowsBody.appendChild(row("Форма оплати", input.vat ? "ПДВ" : "Готівка"));
-      rowsBody.appendChild(row("Потужність станції, кВт", r.targetKw.toFixed(1)));
-      rowsBody.appendChild(row("Інвертор DEYE, кВт", String(r.inverterKw)));
+      if (!isEquipment) {
+        rowsBody.appendChild(row("Потужність станції, кВт", r.targetKw.toFixed(1)));
+      }
+      rowsBody.appendChild(
+        row(
+          "Інвертор " + (isHybrid ? "DEYE" : "SolaX Power") + ", кВт",
+          r.inverterKw !== null ? String(r.inverterKw) : "уточнити у менеджера"
+        )
+      );
+      if (r.panelCount) {
+        rowsBody.appendChild(
+          row(
+            "Панелі (" + r.panelWattage + " Вт/шт)",
+            r.panelCount + " шт ≈ " + fmtNum(r.panelTotalKw) + " кВт"
+          )
+        );
+      }
 
-      if (isHybrid) {
+      if (isHybrid && (r.akb || !isEquipment)) {
         rowsBody.appendChild(sectionRow("Комплект АКБ (автономія)"));
-        rowsBody.appendChild(row("Години автономії", String(input.autonomyHours)));
+        if (!isEquipment) {
+          rowsBody.appendChild(row("Години автономії", String(input.autonomyHours)));
+        }
         if (r.akb) {
           rowsBody.appendChild(row("Необхідна ємність АКБ, кВт·год", r.akb.requiredKwh.toFixed(1)));
           rowsBody.appendChild(row("Модель АКБ", r.akb.model));
@@ -102,6 +120,9 @@
 
       totalBody.appendChild(sectionRow("Орієнтовна вартість"));
       totalBody.appendChild(row("Станція, $", r.stationPrice !== null ? fmtUsd(r.stationPrice).replace("$", "") : "—"));
+      if (r.panelCount) {
+        totalBody.appendChild(row("Панелі, $", r.panelCost !== null ? fmtUsd(r.panelCost).replace("$", "") : "—"));
+      }
       if (isHybrid && r.akb) {
         totalBody.appendChild(
           row(
@@ -110,10 +131,12 @@
           )
         );
       }
-      if (r.mountTotal !== null) {
-        totalBody.appendChild(row("Кріплення, $", fmtUsd(r.mountTotal).replace("$", "")));
-      } else {
-        totalBody.appendChild(row("Кріплення", "уточнити у менеджера"));
+      if (r.panelCount) {
+        if (r.mountTotal !== null) {
+          totalBody.appendChild(row("Кріплення, $", fmtUsd(r.mountTotal).replace("$", "")));
+        } else {
+          totalBody.appendChild(row("Кріплення", "уточнити у менеджера"));
+        }
       }
 
       const totalRow = row("РАЗОМ, $", r.totalUsd !== null ? fmtUsd(r.totalUsd).replace("$", "") : "уточнити у менеджера");

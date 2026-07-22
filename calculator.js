@@ -7,19 +7,39 @@
 
   /**
    * @param {Object} input
-   * @param {number} input.monthlyKwh        Місячне споживання, кВт·год (C4)
+   * @param {"consumption"|"equipment"} input.calcMode  Спосіб розрахунку:
+   *   "consumption" — за місячним споживанням (варіант 1, як завжди);
+   *   "equipment" — за бажаним обладнанням клієнта (варіант 2). У цьому
+   *   режимі manualInverterKw/manualPanelKw/manualAkbKwh — НЕ оверрайди
+   *   поверх авто-розрахунку, а єдине джерело: порожнє поле = клієнт не
+   *   хоче це обладнання, воно повністю пропускається (не рахується, не
+   *   додається в ціну), а не підставляється "як завжди".
+   * @param {number} input.monthlyKwh        Місячне споживання, кВт·год (C4) — тільки для "consumption"
    * @param {"мережева"|"гібридна"} input.stationType  Тип станції (C5)
    * @param {"дах"|"земля"} input.location   Розташування (C6)
    * @param {boolean} input.vat              Форма оплати: true = з ПДВ, false = без ПДВ (C7)
-   * @param {number} input.autonomyHours     Години автономії, тільки для гібридної (C8)
+   * @param {number} input.autonomyHours     Години автономії, тільки для "consumption"+гібридна (C8)
    * @param {string} input.roofType          Назва типу даху/кріплення з data.roofTypes (C43)
    * @param {number} [input.exchangeRate]    Курс, грн/$ (C24) — якщо не задано, тільки $ рахуються
+   * @param {number} [input.manualInverterKw] Потужність інвертора — тільки для "equipment" (обов'язково для нього)
+   * @param {number} [input.manualPanelKw]    Потужність панелей — тільки для "equipment" (порожньо = без панелей)
+   * @param {number} [input.manualAkbKwh]     Ємність АКБ — тільки для "equipment" (порожньо = без АКБ)
+   * @param {number} [input.manualAkbModuleCount] Кількість модулів АКБ вручну (обидва режими) — порожньо = автопідбір із запасом (akbModuleMargin)
    * @param {Object} data                    DEFAULT_DATA (або відредагована копія з localStorage)
    * @returns {Object} результат розрахунку — див. поля нижче
    */
   function calculate(input, data) {
     const c = data.constants;
-    const result = { input, warnings: [] };
+    const calcMode = input.calcMode === "equipment" ? "equipment" : "consumption";
+    const isEquipmentMode = calcMode === "equipment";
+    // "Комплектація" (тільки для equipment-режиму, Anna 2026-07-22): "з монтажем"
+    // (за замовчуванням, як і раніше — інвертор+матеріали/роботи+кріплення) чи
+    // "тільки обладнання" (без матеріалів/робіт і без кріплення — панелі й АКБ
+    // все одно рахуються, це фізичний товар, а не послуга монтажу). У
+    // consumption-режимі перемикача нема — завжди "з монтажем" (бандл-ціна з
+    // Дані і так невіддільна від монтажу).
+    const withInstallation = isEquipmentMode ? input.withInstallation !== false : true;
+    const result = { input, calcMode, withInstallation, warnings: [] };
 
     // --- 1. Розрахунок потужності (C11-C15) ---
     const dailyKwh = input.monthlyKwh / 30;                 // C11
@@ -33,44 +53,50 @@
     result.targetKw = targetKw;
 
     // --- 2. Підбір інвертора (C18) ---
-    // Ручний ввід (клієнт вже знає бажану потужність) підміняє базу підбору,
-    // далі — той самий підбір з довідкового списку (найближчий доступний ≥ бази).
+    // "consumption": база підбору — цільова потужність від споживання.
+    // "equipment": база — потужність, яку назвав клієнт (manualInverterKw);
+    // якщо в цьому режимі поле порожнє — інвертор (і все, що з нього
+    // рахується далі: ціна станції, панелі-за-замовчуванням) НЕ рахуємо.
     const isHybrid = input.stationType === "гібридна";
-    const manualInverterUsed = !!(input.manualInverterKw && input.manualInverterKw > 0);
-    const inverterBasisKw = manualInverterUsed ? input.manualInverterKw : targetKw;
+    const manualInverterUsed = isEquipmentMode && !!(input.manualInverterKw && input.manualInverterKw > 0);
     result.manualInverterUsed = manualInverterUsed;
 
     const list = isHybrid ? data.invertersHybrid : data.invertersMesh;
     const maxListKw = Math.max(...list);
 
-    // 2026-07-21 (рішення Anna): DEYE гібридні йдуть максимум по maxListKw
-    // (зараз 50 кВт) за один блок. Для більшої потужності — паралель N
-    // однакових блоків максимального розміру, округлення ВГОРУ (2×50=100,
-    // 3×50=150...). Застосовується завжди, як тільки базова потужність
-    // гібридної станції перевищує maxListKw — і в авто-розрахунку за
-    // споживанням, і в ручному вводі. Мережеві (SolaX) так не рахуємо —
-    // там кожен розмір зі списку (включно з 100кВт) є окремою моделлю.
-    let inverterKw, inverterModuleCount;
-    if (isHybrid && inverterBasisKw > maxListKw) {
-      inverterModuleCount = Math.ceil(inverterBasisKw / maxListKw);
-      inverterKw = inverterModuleCount * maxListKw;
+    let inverterKw = null, inverterModuleCount = null;
+    if (isEquipmentMode && !manualInverterUsed) {
+      result.warnings.push("Вкажіть потужність інвертора — без неї станцію порахувати не можна.");
     } else {
-      const candidates = list.filter((kw) => kw >= inverterBasisKw);
-      inverterKw = candidates.length > 0 ? Math.min(...candidates) : maxListKw;
-      inverterModuleCount = 1;
+      const inverterBasisKw = manualInverterUsed ? input.manualInverterKw : targetKw;
+      // 2026-07-21 (рішення Anna): DEYE гібридні йдуть максимум по maxListKw
+      // (зараз 50 кВт) за один блок. Для більшої потужності — паралель N
+      // однакових блоків максимального розміру, округлення ВГОРУ (2×50=100,
+      // 3×50=150...). Застосовується завжди, як тільки базова потужність
+      // гібридної станції перевищує maxListKw — і в авто-розрахунку за
+      // споживанням, і в ручному вводі. Мережеві (SolaX) так не рахуємо —
+      // там кожен розмір зі списку (включно з 100кВт) є окремою моделлю.
+      if (isHybrid && inverterBasisKw > maxListKw) {
+        inverterModuleCount = Math.ceil(inverterBasisKw / maxListKw);
+        inverterKw = inverterModuleCount * maxListKw;
+      } else {
+        const candidates = list.filter((kw) => kw >= inverterBasisKw);
+        inverterKw = candidates.length > 0 ? Math.min(...candidates) : maxListKw;
+        inverterModuleCount = 1;
+      }
     }
     result.inverterKw = inverterKw;
     result.inverterModuleCount = inverterModuleCount;
     // Розмір ОДНОГО фізичного блока (для показу "2 × 50 кВт" і для пошуку
     // ціни за прайсом інвертора нижче) — при паралелі це maxListKw, інакше
     // збігається з inverterKw.
-    result.inverterUnitKw = inverterModuleCount > 1 ? maxListKw : inverterKw;
+    result.inverterUnitKw = inverterKw === null ? null : (inverterModuleCount > 1 ? maxListKw : inverterKw);
 
     // --- 3. Ціна станції за ключем вид|розташування|оплата|потужність (C22-C25) ---
     const stationPowerKw = inverterKw; // C22 = C18
     result.stationPowerKw = stationPowerKw;
 
-    const priceRow = data.prices.find(
+    const priceRow = stationPowerKw === null ? null : data.prices.find(
       (p) =>
         p.type === input.stationType &&
         p.location === input.location &&
@@ -80,7 +106,9 @@
 
     let pricePerKw = null;
     let stationPrice = null;
-    if (priceRow) {
+    if (stationPowerKw === null) {
+      // Інвертор не заданий (equipment-режим, поле порожнє) — станцію не рахуємо взагалі.
+    } else if (priceRow) {
       pricePerKw = priceRow.price;
       stationPrice = stationPowerKw * pricePerKw; // C25 = C22*C23 (ціни в Дані вже фінальні, без додаткової націнки)
     } else {
@@ -110,11 +138,20 @@
 
       if (inverterUnitPrice !== null && inverterUnitPrice !== undefined &&
           materialsLabor !== null && materialsLabor !== undefined) {
-        stationPrice = inverterUnitPrice + materialsLabor;
+        // "Тільки обладнання" — матеріали/роботи (послуга монтажу) в ціну
+        // станції не входять; сам інвертор — завжди (це товар).
+        stationPrice = inverterUnitPrice + (withInstallation ? materialsLabor : 0);
         pricePerKw = stationPowerKw > 0 ? stationPrice / stationPowerKw : pricePerKw;
         stationPriceSource = "itemized";
         result.inverterUnitPrice = inverterUnitPrice;
+        // Завжди "сира" знайдена сума (для показу в UI), незалежно від того,
+        // чи додана вона в stationPrice — result.withInstallation каже, чи додана.
         result.materialsLaborPrice = materialsLabor;
+      } else if (!withInstallation) {
+        // Немає окремих даних для розбивки (немає ціни інвертора або
+        // materialsLabor) — розділити на "тільки обладнання" нема з чого,
+        // лишається бандл-ціна (3.), яка вже включає монтаж.
+        result.warnings.push("Немає окремої ціни обладнання без монтажу для цієї потужності — показана орієнтовна ціна з монтажем.");
       }
     }
     result.stationPriceSource = stationPriceSource;
@@ -122,46 +159,67 @@
     result.stationPrice = stationPrice;
 
     // --- 4. Панелі (C42) ---
-    // Ручний ввід панелей — незалежний від інвертора (клієнт міг попросити
-    // панелі "з запасом" понад потужність інвертора). Порожньо — як завжди,
-    // від потужності станції (інвертора).
-    const manualPanelUsed = !!(input.manualPanelKw && input.manualPanelKw > 0);
-    const panelBasisKw = manualPanelUsed ? input.manualPanelKw : stationPowerKw;
+    // "consumption": як завжди, від потужності станції (інвертора).
+    // "equipment": панелі рахуємо, ТІЛЬКИ якщо клієнт назвав їх потужність
+    // (manualPanelKw>0). Порожнє поле в цьому режимі = клієнт не хоче
+    // панелі — не рахуємо кількість/вартість/кріплення взагалі (не "0", а
+    // відсутність розділу).
+    const manualPanelUsed = isEquipmentMode && !!(input.manualPanelKw && input.manualPanelKw > 0);
     result.manualPanelUsed = manualPanelUsed;
 
-    const panelCount = Math.ceil(panelBasisKw / c.panelPowerKw);
-    result.panelCount = panelCount;
-    result.panelTotalKw = panelCount * c.panelPowerKw;
+    const panelsWanted = isEquipmentMode ? manualPanelUsed : true;
 
-    // Вартість панелей — окремо від ціни станції (у Дані ціна станції вже
-    // не включає панелі), кількість Вт × ціна за Вт (ПДВ/без ПДВ).
-    const panelWattage = c.panelPowerKw * 1000; // 615 Вт
-    const panelPricePerW = input.vat ? data.panelPrice.vat : data.panelPrice.noVat;
-    const panelCost = panelCount * panelWattage * panelPricePerW;
+    let panelCount = null, panelTotalKw = null, panelWattage = null, panelPricePerW = null, panelCost = null;
+    if (panelsWanted) {
+      const panelBasisKw = manualPanelUsed ? input.manualPanelKw : stationPowerKw;
+      panelCount = Math.ceil(panelBasisKw / c.panelPowerKw);
+      panelTotalKw = panelCount * c.panelPowerKw;
+
+      // Вартість панелей — окремо від ціни станції (у Дані ціна станції вже
+      // не включає панелі), кількість Вт × ціна за Вт (ПДВ/без ПДВ).
+      panelWattage = c.panelPowerKw * 1000; // 615 Вт
+      panelPricePerW = input.vat ? data.panelPrice.vat : data.panelPrice.noVat;
+      panelCost = panelCount * panelWattage * panelPricePerW;
+    }
+    result.panelCount = panelCount;
+    result.panelTotalKw = panelTotalKw;
     result.panelWattage = panelWattage;
     result.panelPricePerW = panelPricePerW;
     result.panelCost = panelCost;
 
     // --- 5. Кріплення (C43-C45) ---
-    const roof = data.roofTypes.find((r) => r.name === input.roofType);
+    // Кріплення має сенс, тільки якщо є панелі, І якщо обрано "з монтажем"
+    // (це послуга/матеріали монтажу, як і materialsLabor вище — при "тільки
+    // обладнання" не рахуємо, навіть якщо тип даху обрано).
     let mountPricePerPanel = null;
     let mountTotal = null;
-    if (roof) {
-      mountPricePerPanel = roof.price * c.akbMarkup; // C44, з націнкою (не округлюється при рахунку)
-      mountTotal = panelCount * mountPricePerPanel;   // C45
-    } else {
-      result.warnings.push("Не вибрано тип даху/кріплення — уточнити у менеджера.");
+    if (panelsWanted && withInstallation) {
+      const roof = data.roofTypes.find((r) => r.name === input.roofType);
+      if (roof) {
+        mountPricePerPanel = roof.price * c.akbMarkup; // C44, з націнкою (не округлюється при рахунку)
+        mountTotal = panelCount * mountPricePerPanel;   // C45
+      } else {
+        result.warnings.push("Не вибрано тип даху/кріплення — уточнити у менеджера.");
+      }
     }
     result.mountPricePerPanel = mountPricePerPanel;
     result.mountTotal = mountTotal;
 
     // --- 6. Автономія та АКБ (C29-C39), тільки для гібридної ---
+    // "consumption": як завжди, від годин автономії.
+    // "equipment": АКБ рахуємо, ТІЛЬКИ якщо клієнт назвав ємність
+    // (manualAkbKwh>0). Порожнє поле в цьому режимі = клієнт не хоче АКБ —
+    // не підбираємо модель і не додаємо в ціну (без попередження, це не
+    // помилка даних, а вибір клієнта).
     let akb = null;
-    if (isHybrid) {
-      // Ручний ввід ємності АКБ — минає розрахунок від годин автономії,
-      // але модель і кількість модулів все одно підбираються автоматично.
-      const manualAkbUsed = !!(input.manualAkbKwh && input.manualAkbKwh > 0);
-      result.manualAkbUsed = manualAkbUsed;
+    const manualAkbUsed = isEquipmentMode && !!(input.manualAkbKwh && input.manualAkbKwh > 0);
+    result.manualAkbUsed = manualAkbUsed;
+    const akbWanted = isHybrid && (isEquipmentMode ? manualAkbUsed : true);
+    if (akbWanted && inverterKw === null) {
+      // equipment-режим: клієнт назвав ємність АКБ, але не назвав інвертор —
+      // LV/HV визначити нема від чого (це апаратне обмеження інвертора).
+      result.warnings.push("Вкажіть потужність інвертора — без неї неможливо підібрати систему АКБ (LV/HV).");
+    } else if (akbWanted) {
       const requiredKwh = manualAkbUsed ? input.manualAkbKwh : (input.autonomyHours * dailyKwh / 24); // C29
       // Anna 2026-07-21: LV/HV — це фізичне обмеження САМОГО ІНВЕРТОРА (апаратне,
       // не залежить від потрібної ємності АКБ), тому й вирішується за обраним
@@ -194,9 +252,19 @@
       }
 
       if (chosen) {
-        // Фінальна кількість модулів — із запасом (C33).
-        const moduleCount = Math.ceil(requiredKwh / c.akbModuleMargin / chosen.capacity);
+        // Фінальна кількість модулів — із запасом (C33: CEILING(req/0.7/cap)).
+        // Anna 2026-07-22: запас іноді дає "зайвий" модуль на межі ємності
+        // (напр. 5 кВт·год потреба + модуль 5.12 → авто 2 модулі через
+        // запас). Модель підбирається завжди автоматично; кількість
+        // модулів можна скоригувати вручну (manualAkbModuleCount), якщо
+        // клієнт свідомо не хоче запас.
+        const autoModuleCount = Math.ceil(requiredKwh / c.akbModuleMargin / chosen.capacity);
+        const manualModuleUsed = !!(input.manualAkbModuleCount && input.manualAkbModuleCount > 0);
+        const moduleCount = manualModuleUsed ? Math.max(1, Math.round(input.manualAkbModuleCount)) : autoModuleCount;
         const totalCapacityKwh = moduleCount * chosen.capacity;
+        if (manualModuleUsed && totalCapacityKwh < requiredKwh) {
+          result.warnings.push("Кількість модулів АКБ, вказана вручну, менша за розрахункову потребу (без запасу) — перевірте з клієнтом.");
+        }
 
         const priceVat = moduleCount * chosen.priceVat;
         const priceNoVat = moduleCount * chosen.priceNoVat;
@@ -219,6 +287,8 @@
           model: chosen.model,
           moduleCapacityKwh: chosen.capacity,
           moduleCount,
+          autoModuleCount,
+          manualModuleUsed,
           totalCapacityKwh,
           bms: bank === "HV" ? chosen.bms : null,
           rack: bank === "HV" ? chosen.rack : null,
@@ -233,17 +303,24 @@
     result.akb = akb;
 
     // --- 7. Разом по СЕС (C48-C49) ---
+    // Разом = сума лише тих розділів, що фактично порахувані. Станція
+    // (інвертор) — єдина обов'язкова частина; панелі/АКБ/кріплення, коли
+    // свідомо пропущені (equipment-режим, поле порожнє), додають 0 без
+    // попереджень — це вибір клієнта, не прогалина в даних.
     let total = null;
-    if (stationPrice !== null && mountTotal !== null) {
+    if (stationPrice !== null) {
       let akbPart = 0;
       if (isHybrid) {
-        if (!akb) {
-          result.warnings.push("Немає АКБ для розрахунку підсумку — уточнити у менеджера.");
-        } else {
+        if (akb) {
           akbPart = input.vat ? akb.kitPriceVat : akb.kitPriceNoVat;
+        } else if (!isEquipmentMode) {
+          // "consumption"-режим завжди мав дати АКБ (є години автономії) —
+          // якщо не дав, це реальна прогалина, а не вибір клієнта.
+          result.warnings.push("Немає АКБ для розрахунку підсумку — уточнити у менеджера.");
         }
+        // isEquipmentMode && !akb — клієнт свідомо не хоче АКБ, попередження не потрібне.
       }
-      total = stationPrice + panelCost + akbPart + mountTotal;
+      total = stationPrice + (panelCost !== null ? panelCost : 0) + akbPart + (mountTotal !== null ? mountTotal : 0);
     }
     result.totalUsd = total;
     result.totalUah = total !== null && input.exchangeRate ? total * input.exchangeRate : null;

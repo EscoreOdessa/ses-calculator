@@ -65,6 +65,7 @@
 
   function readInput() {
     return {
+      calcMode: el("in-mode").value,
       monthlyKwh: parseFloat(el("in-monthly").value) || 0,
       stationType: el("in-type").value,
       location: el("in-location").value,
@@ -75,18 +76,41 @@
       manualInverterKw: parseFloat(el("in-manual-inverter").value) || null,
       manualPanelKw: parseFloat(el("in-manual-panel").value) || null,
       manualAkbKwh: parseFloat(el("in-manual-akb").value) || null,
+      withInstallation: el("in-install").value === "1",
+      manualAkbModuleCount: parseFloat(el("in-manual-akbmodules").value) || null,
     };
   }
 
   function render() {
     const input = readInput();
     const isHybrid = input.stationType === "гібридна";
-    el("field-autonomy").style.display = isHybrid ? "" : "none";
+    const isEquipment = input.calcMode === "equipment";
+
+    el("field-monthly").style.display = isEquipment ? "none" : "";
+    el("card-manual-equipment").style.display = isEquipment ? "" : "none";
+    el("card-power").style.display = isEquipment ? "none" : "";
+    el("field-autonomy").style.display = isHybrid && !isEquipment ? "" : "none";
     el("field-manual-akb").style.display = isHybrid ? "" : "none";
-    el("card-akb").style.display = isHybrid ? "" : "none";
+    // "Комплектація" (з монтажем / тільки обладнання) має сенс тільки в equipment-режимі.
+    el("field-install").style.display = isEquipment ? "" : "none";
+    el("row-inverterprice").style.display = isEquipment ? "" : "none";
+    el("row-materialslabor").style.display = isEquipment ? "" : "none";
+    // "Станція, $" дублює "Ціна інвертора"+"Матеріали та роботи" в equipment-режимі — ховаємо там.
+    el("row-stationprice").style.display = isEquipment ? "none" : "";
 
     const r = SesCalc.calculate(input, currentData);
     lastResult = r;
+
+    // Кріплення/тип даху мають сенс, тільки якщо панелі фактично рахуються
+    // І обрано "з монтажем" (equipment-режим, "тільки обладнання" — без кріплень).
+    el("field-roof").style.display = r.panelCount !== null ? "" : "none";
+    el("card-mount").style.display = r.panelCount !== null && r.withInstallation ? "" : "none";
+    // Блок вибору АКБ (у "Підбір обладнання"): у consumption-режимі завжди
+    // показуємо для гібридної; у equipment-режимі — тільки якщо клієнт
+    // справді назвав ємність. Рядок ціни АКБ (у "Орієнтовна ціна станції") —
+    // за тим самим принципом.
+    el("block-akb-select").style.display = isHybrid && (!isEquipment || r.akb) ? "" : "none";
+    el("row-akbprice").style.display = isHybrid && r.akb ? "" : "none";
 
     el("out-daily").textContent = fmtNum(r.dailyKwh);
     el("out-day").textContent = fmtNum(r.dayKwh);
@@ -94,14 +118,27 @@
     el("out-target").textContent = fmtNum(r.targetKw);
 
     const inverterBrand = isHybrid ? "DEYE" : "SolaX Power";
-    const inverterSizeText = r.inverterModuleCount > 1
-      ? `${r.inverterModuleCount} × ${r.inverterUnitKw} кВт (паралель) = ${r.inverterKw} кВт`
-      : `${r.inverterKw} кВт`;
-    el("out-inverter").textContent = `${inverterBrand}, ${inverterSizeText}`
-      + (r.manualInverterUsed ? " (вручну)" : "")
-      + (r.stationPriceSource === "itemized" ? " · ціна за прайсом інвертора" : "");
-    el("out-panels").textContent = `${r.panelCount} шт × ${r.panelWattage} Вт ≈ ${fmtNum(r.panelTotalKw)} кВт` + (r.manualPanelUsed ? " (вручну)" : "");
+    if (r.inverterKw === null) {
+      el("out-inverter").textContent = "— (вкажіть потужність інвертора)";
+    } else {
+      const inverterSizeText = r.inverterModuleCount > 1
+        ? `${r.inverterModuleCount} × ${r.inverterUnitKw} кВт (паралель) = ${r.inverterKw} кВт`
+        : `${r.inverterKw} кВт`;
+      el("out-inverter").textContent = `${inverterBrand}, ${inverterSizeText}`
+        + (r.manualInverterUsed ? " (вручну)" : "");
+    }
+    el("out-panels").textContent = r.panelCount !== null
+      ? `${r.panelCount} шт × ${r.panelWattage} Вт ≈ ${fmtNum(r.panelTotalKw)} кВт` + (r.manualPanelUsed ? " (вручну)" : "")
+      : "— (клієнт не хоче панелі)";
 
+    el("out-inverterprice").textContent = (r.inverterUnitPrice !== null && r.inverterUnitPrice !== undefined) ? fmtUsd(r.inverterUnitPrice) : "—";
+    if (r.materialsLaborPrice === null || r.materialsLaborPrice === undefined) {
+      el("out-materialslabor").textContent = "—";
+    } else if (!r.withInstallation) {
+      el("out-materialslabor").textContent = "не враховано (тільки обладнання)";
+    } else {
+      el("out-materialslabor").textContent = fmtUsd(r.materialsLaborPrice);
+    }
     el("out-priceperkw").textContent = r.pricePerKw !== null ? fmtUsd(r.pricePerKw) : "уточнити у менеджера";
     el("out-stationprice").textContent = r.stationPrice !== null ? fmtUsd(r.stationPrice) : "уточнити у менеджера";
     el("out-panelpricew").textContent = r.panelPricePerW !== null ? "$" + r.panelPricePerW.toFixed(2) : "—";
@@ -111,16 +148,32 @@
       el("out-akbreq").textContent = fmtNum(r.akb.requiredKwh) + " кВт·год" + (r.manualAkbUsed ? " (вручну)" : "");
       el("out-akbbank").textContent = r.akb.bank;
       el("out-akbmodel").textContent = r.akb.model;
-      el("out-akbcount").textContent = r.akb.moduleCount + " шт";
+      el("out-akbcount").textContent = r.akb.moduleCount + " шт" + (r.akb.manualModuleUsed ? " (вручну)" : "");
+      el("in-manual-akbmodules").placeholder = "авто (" + r.akb.autoModuleCount + " шт)";
       el("out-akbtotal").textContent = fmtNum(r.akb.totalCapacityKwh) + " кВт·год";
       el("out-akbrack").textContent = r.akb.bank === "HV" ? `${r.akb.bms} × ${r.akb.rackCount} / ${r.akb.rack}` : "—";
       el("out-akbprice").textContent = fmtUsd(input.vat ? r.akb.kitPriceVat : r.akb.kitPriceNoVat);
+    } else if (isHybrid) {
+      ["out-akbreq", "out-akbbank", "out-akbmodel", "out-akbcount", "out-akbtotal", "out-akbrack", "out-akbprice"].forEach((id) => {
+        el(id).textContent = "—";
+      });
+      el("in-manual-akbmodules").placeholder = "авто";
     }
 
     el("out-mountperpanel").textContent = r.mountPricePerPanel !== null ? fmtUsd(r.mountPricePerPanel) : "—";
     el("out-mounttotal").textContent = r.mountTotal !== null ? fmtUsd(r.mountTotal) : "—";
 
-    const perKw = r.totalUsd !== null && r.panelTotalKw ? r.totalUsd / r.panelTotalKw : null;
+    // Ціна за кВт у підсумку: якщо є панелі — рахуємо від їх сумарної
+    // потужності; якщо панелей немає (equipment-режим без панелей) —
+    // від потужності інвертора (рішення Anna 2026-07-22).
+    let perKw = null;
+    if (r.totalUsd !== null) {
+      if (r.panelCount && r.panelTotalKw) {
+        perKw = r.totalUsd / r.panelTotalKw;
+      } else if (r.inverterKw) {
+        perKw = r.totalUsd / r.inverterKw;
+      }
+    }
     el("out-totalperkw").textContent = perKw !== null ? fmtUsd(perKw) : "—";
     el("out-totalusd").textContent = r.totalUsd !== null ? fmtUsd(r.totalUsd) : "уточнити у менеджера";
     el("out-totaluah").textContent = r.totalUah !== null ? fmtUah(r.totalUah) : "—";
