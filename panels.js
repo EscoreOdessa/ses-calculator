@@ -14,6 +14,9 @@ const MAPS_API_KEY = "AIzaSyDrh0z0gHcxjcGVVsIeLqxe7XiNr9gL_ls";
 // панелей» тоді рахує кут наближено за формулою, а «Виробництво
 // електроенергії» не працюватиме зовсім (це основна його функція).
 const PVGIS_PROXIES = [
+  // Власний надійний проксі на Cloudflare Workers (акаунт Anna) — основний.
+  "https://pvgis-proxy.anna-escore.workers.dev/?url=",
+  // Запасні публічні проксі (нестабільні) — лишені як фолбек.
   "https://api.allorigins.win/raw?url=",
   "https://corsproxy.io/?url=",
   "https://api.codetabs.com/v1/proxy?quest=",
