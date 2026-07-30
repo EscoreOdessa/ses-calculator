@@ -125,9 +125,13 @@
         <div class="row"><span class="label">Потрібна ємність АКБ, кВт·год</span><span class="value" id="out-akbreq"></span></div>
         <div class="row"><span class="label">Система АКБ (авто: LV / HV)</span><span class="value" id="out-akbbank"></span></div>
         <div class="row"><span class="label">Підібрана модель АКБ</span><span class="value" id="out-akbmodel"></span></div>
+        <div class="field">
+          <label for="in-manual-akbmodel">Модель АКБ (вручну)</label>
+          <select id="in-manual-akbmodel"><option value="">авто (підбір за потребою)</option></select>
+        </div>
         <div class="row"><span class="label">Кількість модулів АКБ</span><span class="value" id="out-akbcount"></span></div>
         <div class="field">
-          <label for="in-manual-akbmodules">Кількість модулів АКБ (вручну, якщо без запасу)</label>
+          <label for="in-manual-akbmodules">Кількість модулів АКБ (вручну)</label>
           <input type="number" id="in-manual-akbmodules" min="1" step="1" placeholder="авто" />
         </div>
         <div class="row"><span class="label">Підсумкова ємність АКБ, кВт·год</span><span class="value" id="out-akbtotal"></span></div>

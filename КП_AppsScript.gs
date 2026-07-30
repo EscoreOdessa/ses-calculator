@@ -124,7 +124,7 @@ function generateProposalPDF() {
   rows.push(['Тип станції', fmt_(v('type'))]);
   rows.push(['Розташування', fmt_(v('location'))]);
   rows.push(['Форма оплати', fmt_(v('payment'))]);
-  rows.push(['Потужність станції, кВт', fmt_(v('power') || powerForPrice)]);
+  rows.push(['Середнє денне споживання, кВт', fmt_(v('power') || powerForPrice)]);
   rows.push(['Інвертор DEYE, кВт', fmt_(v('inverter'))]);
  
   if (isHybrid) {

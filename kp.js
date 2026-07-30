@@ -88,7 +88,7 @@
       rowsBody.appendChild(row("Тип станції", cap(input.stationType)));
       rowsBody.appendChild(row("Розташування", cap(input.location)));
       if (!isEquipment) {
-        rowsBody.appendChild(row("Потужність станції, кВт", r.targetKw.toFixed(1)));
+        rowsBody.appendChild(row("Середнє денне споживання, кВт", r.targetKw.toFixed(1)));
       }
       rowsBody.appendChild(
         row(

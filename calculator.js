@@ -227,28 +227,50 @@
       // під HV-only інвертор при невеликій автономії — реальний баг, знайдений Anna
       // на прикладі 50 кВт). Поріг hvInverterKwThreshold=20: 5/10/15 кВт — LV,
       // 20 кВт і вище (включно з паралеллю 2×50 і т.д.) — HV.
-      const bank = inverterKw >= c.hvInverterKwThreshold ? "HV" : "LV"; // C30
+      const inverterBank = inverterKw >= c.hvInverterKwThreshold ? "HV" : "LV"; // C30 — апаратне обмеження інвертора
+
+      // Ручний вибір моделі АКБ менеджером (Anna 2026-07-30): якщо задано назву
+      // моделі — беремо саме її з каталогу (LV або HV), без автопідбору. Банк
+      // (LV/HV) визначає сама модель; якщо він не збігається з тим, що дозволяє
+      // інвертор — показуємо попередження, але модель лишаємо (рішення менеджера).
+      let chosen = null, manualModelUsed = false, bank = inverterBank;
+      if (input.manualAkbModel) {
+        const lv = data.batteriesLV.find((m) => m.model === input.manualAkbModel);
+        const hv = data.batteriesHV.find((m) => m.model === input.manualAkbModel);
+        chosen = lv || hv || null;
+        if (chosen) {
+          manualModelUsed = true;
+          bank = lv ? "LV" : "HV";
+          if (bank !== inverterBank) {
+            result.warnings.push("Обрана вручну модель АКБ (" + bank + ") не відповідає інвертору (" + inverterBank + " за потужністю) — перевірте сумісність LV/HV.");
+          }
+        } else {
+          result.warnings.push("Обрану вручну модель АКБ не знайдено в каталозі — використано автопідбір.");
+        }
+      }
       const catalog = bank === "HV" ? data.batteriesHV : data.batteriesLV;
 
-      // Підбір моделі: мінімальна зайва ємність (без запасу), тай-брейк — менше модулів.
-      let chosen = null;
-      if (requiredKwh > 0 && catalog.length > 0) {
-        let best = null;
-        for (const model of catalog) {
-          const modulesRaw = Math.ceil(requiredKwh / model.capacity);
-          const waste = modulesRaw * model.capacity - requiredKwh;
-          if (
-            best === null ||
-            waste < best.waste - 1e-9 ||
-            (Math.abs(waste - best.waste) < 1e-9 && modulesRaw < best.modulesRaw)
-          ) {
-            best = { model, modulesRaw, waste };
+      // Автопідбір моделі (якщо вручну не обрано): мінімальна зайва ємність (без
+      // запасу), тай-брейк — менше модулів.
+      if (!chosen) {
+        if (requiredKwh > 0 && catalog.length > 0) {
+          let best = null;
+          for (const model of catalog) {
+            const modulesRaw = Math.ceil(requiredKwh / model.capacity);
+            const waste = modulesRaw * model.capacity - requiredKwh;
+            if (
+              best === null ||
+              waste < best.waste - 1e-9 ||
+              (Math.abs(waste - best.waste) < 1e-9 && modulesRaw < best.modulesRaw)
+            ) {
+              best = { model, modulesRaw, waste };
+            }
           }
+          chosen = best.model;
+        } else if (catalog.length > 0) {
+          // Фолбек: немає вимоги до ємності — беремо модель з максимальною ємністю.
+          chosen = catalog.reduce((a, b) => (b.capacity > a.capacity ? b : a));
         }
-        chosen = best.model;
-      } else if (catalog.length > 0) {
-        // Фолбек: немає вимоги до ємності — беремо модель з максимальною ємністю.
-        chosen = catalog.reduce((a, b) => (b.capacity > a.capacity ? b : a));
       }
 
       if (chosen) {
@@ -258,7 +280,10 @@
         // запас). Модель підбирається завжди автоматично; кількість
         // модулів можна скоригувати вручну (manualAkbModuleCount), якщо
         // клієнт свідомо не хоче запас.
-        const autoModuleCount = Math.ceil(requiredKwh / c.akbModuleMargin / chosen.capacity);
+        // Кількість модулів: без запасу (akbModuleMargin=1.0). Якщо модель обрана
+        // вручну, а потреби в ємності нема (напр. autonomy=0) — мінімум 1 модуль.
+        let autoModuleCount = Math.ceil(requiredKwh / c.akbModuleMargin / chosen.capacity);
+        if (manualModelUsed && (!autoModuleCount || autoModuleCount < 1)) autoModuleCount = 1;
         const manualModuleUsed = !!(input.manualAkbModuleCount && input.manualAkbModuleCount > 0);
         const moduleCount = manualModuleUsed ? Math.max(1, Math.round(input.manualAkbModuleCount)) : autoModuleCount;
         const totalCapacityKwh = moduleCount * chosen.capacity;
@@ -285,6 +310,7 @@
           requiredKwh,
           bank,
           model: chosen.model,
+          manualModelUsed,
           moduleCapacityKwh: chosen.capacity,
           moduleCount,
           autoModuleCount,
