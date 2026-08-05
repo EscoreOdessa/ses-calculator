@@ -14,9 +14,7 @@ const MAPS_API_KEY = "AIzaSyDrh0z0gHcxjcGVVsIeLqxe7XiNr9gL_ls";
 // панелей» тоді рахує кут наближено за формулою, а «Виробництво
 // електроенергії» не працюватиме зовсім (це основна його функція).
 const PVGIS_PROXIES = [
-  // Власний надійний проксі на Cloudflare Workers (акаунт Anna) — основний.
-  "https://pvgis-proxy.anna-escore.workers.dev/?url=",
-  // Запасні публічні проксі (нестабільні) — лишені як фолбек.
+  "https://hidden-hall-c541.anna-escore.workers.dev/?url=", // власний Cloudflare Worker Anna, 2026-07-18
   "https://api.allorigins.win/raw?url=",
   "https://corsproxy.io/?url=",
   "https://api.codetabs.com/v1/proxy?quest=",
@@ -162,7 +160,7 @@ function isRoofAdjustable() {
 const PANEL_SPEC = {
   lengthM: 2.382,
   widthM: 1.134,
-  wattPerPanel: 620,
+  wattPerPanel: 615,
   gapM: 0.02,
   setbackM: 0.3,
 };

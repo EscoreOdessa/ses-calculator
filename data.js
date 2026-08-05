@@ -99,7 +99,7 @@ const DEFAULT_DATA = {
     { type: "гібридна",  location: "дах",   vat: false, power: 20,  price: 269.65, materialsLabor: 2481 },
     { type: "гібридна",  location: "дах",   vat: true,  power: 20,  price: 315.43, materialsLabor: 2481 },
     { type: "мережева", location: "дах",   vat: false, power: 30,  price: 183.9,  materialsLabor: 3486 },
-    { type: "мережева", location: "дах",   vat: true,  power: 30,  price: 232.31, materialsLabor: 3486 }, // виправлено 2026-07-21: K31 у Дані була пуста (мала бути "ПДВ,")
+    { type: "мережева", location: "дах",   vat: true,  power: 30,  price: 232.31, materialsLabor: 3788 }, // 2026-07-22: оновлено з ses-dani-2026-07-22.json (було 3486)
     { type: "гібридна",  location: "дах",   vat: false, power: 30,  price: 243.84, materialsLabor: 3912 },
     { type: "гібридна",  location: "дах",   vat: true,  power: 30,  price: 277.98, materialsLabor: 3912 },
     { type: "мережева", location: "земля", vat: false, power: 30,  price: 222.18, materialsLabor: 4331 },
@@ -164,7 +164,7 @@ const DEFAULT_DATA = {
     inverterMaxOverload: 1.1, // інвертор не більше ніж +10% від цільової потужності (довідково)
     panelPowerKw: 0.615,     // потужність однієї панелі, кВт (615 Вт)
     akbMarkup: 1.15,         // націнка на АКБ і кріплення
-    akbModuleMargin: 1.0,    // Anna 2026-07-30: без запасу (100%) — кількість модулів рівно під потребу (C33 = CEILING(req/1.0/cap))
+    akbModuleMargin: 1.0,    // Anna 2026-08-05: без запасу (100%) — кількість модулів рівно під потребу (CEILING(req/1.0/cap))
     hvThresholdKwh: 50,      // СТАРЕ, БІЛЬШЕ НЕ ВИКОРИСТОВУЄТЬСЯ для вибору LV/HV (лишено про запас на випадок відкоту).
     // 2026-07-21 (Anna): LV/HV — апаратне обмеження САМОГО інвертора, не ємності
     // АКБ. Інвертори 5/10/15 кВт — LV; 20 кВт і вище (в т.ч. паралель, напр.

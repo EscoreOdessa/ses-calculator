@@ -71,6 +71,16 @@
       const now = new Date();
       const clientName = (document.getElementById("in-client") || {}).value || "";
       el("kp-client").textContent = clientName || "";
+
+      // Контакти менеджера з форми (якщо заповнені) — у шапку КП.
+      const mgrPhone = ((document.getElementById("in-manager-phone") || {}).value || "").trim();
+      const mgrEmail = ((document.getElementById("in-manager-email") || {}).value || "").trim();
+      if (mgrPhone || mgrEmail) {
+        const parts = [];
+        if (mgrPhone) parts.push("тел.: " + mgrPhone);
+        if (mgrEmail) parts.push("email: " + mgrEmail);
+        el("kp-contacts").textContent = parts.join("  •  ");
+      }
       el("kp-num").textContent = "№ " + proposalNumber(now);
       el("kp-doc-date").textContent =
         "Дата: " + pad2(now.getDate()) + "." + pad2(now.getMonth() + 1) + "." + now.getFullYear();
@@ -86,9 +96,8 @@
 
       rowsBody.appendChild(sectionRow("Параметри станції"));
       rowsBody.appendChild(row("Тип станції", cap(input.stationType)));
-      rowsBody.appendChild(row("Розташування", cap(input.location)));
-      if (!isEquipment) {
-        rowsBody.appendChild(row("Середнє денне споживання, кВт", r.targetKw.toFixed(1)));
+      if (r.panelCount) {
+        rowsBody.appendChild(row("Розташування", cap(input.location)));
       }
       rowsBody.appendChild(
         row(
@@ -119,7 +128,12 @@
       }
 
       totalBody.appendChild(sectionRow("Орієнтовна вартість"));
-      totalBody.appendChild(row("Станція, $", r.stationPrice !== null ? fmtUsd(r.stationPrice).replace("$", "") : "—"));
+      totalBody.appendChild(
+        row(
+          isEquipment ? "Інвертор, $" : "Станція, $",
+          r.stationPrice !== null ? fmtUsd(r.stationPrice).replace("$", "") : "—"
+        )
+      );
       if (r.panelCount) {
         totalBody.appendChild(row("Панелі, $", r.panelCost !== null ? fmtUsd(r.panelCost).replace("$", "") : "—"));
       }

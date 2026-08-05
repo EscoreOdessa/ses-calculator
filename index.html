@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Калькулятор СЕС — потужність і ціна</title>
-<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="style.css?v=20260805" />
 </head>
 <body>
 
@@ -16,6 +16,7 @@
   <button class="tab-btn" data-tab="panels">Розкладка панелей</button>
   <button class="tab-btn" data-tab="production">Виробництво електроенергії</button>
   <button class="tab-btn" data-tab="kp">КП</button>
+  <button class="tab-btn" data-tab="assistant">Помічник</button>
 </nav>
 
 <main>
@@ -29,6 +30,16 @@
       <div class="field">
         <label for="in-client">Запит від</label>
         <input type="text" id="in-client" placeholder="Ім'я клієнта / компанія" />
+      </div>
+
+      <div class="field">
+        <label for="in-manager-phone">Телефон менеджера (для КП)</label>
+        <input type="text" id="in-manager-phone" placeholder="+380 ..." />
+      </div>
+
+      <div class="field">
+        <label for="in-manager-email">Email менеджера (для КП)</label>
+        <input type="text" id="in-manager-email" placeholder="name@escore.com" />
       </div>
 
       <div class="field">
@@ -125,13 +136,9 @@
         <div class="row"><span class="label">Потрібна ємність АКБ, кВт·год</span><span class="value" id="out-akbreq"></span></div>
         <div class="row"><span class="label">Система АКБ (авто: LV / HV)</span><span class="value" id="out-akbbank"></span></div>
         <div class="row"><span class="label">Підібрана модель АКБ</span><span class="value" id="out-akbmodel"></span></div>
-        <div class="field">
-          <label for="in-manual-akbmodel">Модель АКБ (вручну)</label>
-          <select id="in-manual-akbmodel"><option value="">авто (підбір за потребою)</option></select>
-        </div>
         <div class="row"><span class="label">Кількість модулів АКБ</span><span class="value" id="out-akbcount"></span></div>
         <div class="field">
-          <label for="in-manual-akbmodules">Кількість модулів АКБ (вручну)</label>
+          <label for="in-manual-akbmodules">Кількість модулів АКБ (вручну, якщо без запасу)</label>
           <input type="number" id="in-manual-akbmodules" min="1" step="1" placeholder="авто" />
         </div>
         <div class="row"><span class="label">Підсумкова ємність АКБ, кВт·год</span><span class="value" id="out-akbtotal"></span></div>
@@ -355,18 +362,34 @@
     </div>
   </section>
 
+  <!-- ==================== ПОМІЧНИК (діалоговий режим) ==================== -->
+  <!-- Окрема вкладка. Звертається до окремого Worker-бекенду (див. assistant.js). -->
+  <!-- Логіку калькулятора не зачіпає. -->
+  <section class="panel" id="panel-assistant">
+    <div class="card">
+      <h2>Помічник менеджера</h2>
+      <p class="hint">Опишіть питання клієнта своїми словами — підкажу відповідь на основі бази знань ESCORE. Ціни та окупність звіряйте з калькулятором.</p>
+      <div id="asst-chat" class="asst-chat"></div>
+      <div class="asst-bar">
+        <textarea id="asst-input" rows="2" placeholder="Питання клієнта своїми словами…"></textarea>
+        <button class="btn" id="asst-send" type="button">Запитати</button>
+      </div>
+    </div>
+  </section>
+
 </main>
 
-<script src="data.js"></script>
-<script src="calculator.js"></script>
-<script src="storage.js"></script>
-<script src="geometry.js"></script>
-<script src="maps-loader.js"></script>
-<script src="app.js"></script>
-<script src="dani.js"></script>
-<script src="logo.js"></script>
-<script src="panels.js"></script>
-<script src="production.js"></script>
-<script src="kp.js"></script>
+<script src="data.js?v=20260805"></script>
+<script src="calculator.js?v=20260805"></script>
+<script src="storage.js?v=20260805"></script>
+<script src="geometry.js?v=20260805"></script>
+<script src="maps-loader.js?v=20260805"></script>
+<script src="app.js?v=20260805"></script>
+<script src="dani.js?v=20260805"></script>
+<script src="logo.js?v=20260805"></script>
+<script src="panels.js?v=20260805"></script>
+<script src="production.js?v=20260805"></script>
+<script src="kp.js?v=20260805"></script>
+<script src="assistant.js?v=20260805"></script>
 </body>
 </html>

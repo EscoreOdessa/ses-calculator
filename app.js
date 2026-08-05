@@ -30,7 +30,6 @@
   function onDataChanged() {
     SesStorage.save(currentData);
     refreshRoofOptions();
-    refreshAkbModelOptions();
     render();
     document.dispatchEvent(new CustomEvent("ses:datachanged"));
   }
@@ -64,31 +63,6 @@
 
   refreshRoofOptions();
 
-  function refreshAkbModelOptions() {
-    const sel = el("in-manual-akbmodel");
-    if (!sel) return;
-    const prev = sel.value;
-    sel.innerHTML = '<option value="">авто (підбір за потребою)</option>';
-    const addGroup = (label, arr) => {
-      if (!arr || !arr.length) return;
-      const g = document.createElement("optgroup");
-      g.label = label;
-      arr.forEach((m) => {
-        const o = document.createElement("option");
-        o.value = m.model;
-        o.textContent = m.model + " — " + m.capacity + " кВт·год";
-        g.appendChild(o);
-      });
-      sel.appendChild(g);
-    };
-    addGroup("LV (інвертор < 20 кВт)", currentData.batteriesLV);
-    addGroup("HV (інвертор ≥ 20 кВт)", currentData.batteriesHV);
-    const all = [].concat(currentData.batteriesLV || [], currentData.batteriesHV || []).map((m) => m.model);
-    sel.value = all.indexOf(prev) >= 0 ? prev : "";
-  }
-
-  refreshAkbModelOptions();
-
   function readInput() {
     return {
       calcMode: el("in-mode").value,
@@ -104,7 +78,6 @@
       manualAkbKwh: parseFloat(el("in-manual-akb").value) || null,
       withInstallation: el("in-install").value === "1",
       manualAkbModuleCount: parseFloat(el("in-manual-akbmodules").value) || null,
-      manualAkbModel: el("in-manual-akbmodel").value || null,
     };
   }
 
@@ -174,7 +147,7 @@
     if (isHybrid && r.akb) {
       el("out-akbreq").textContent = fmtNum(r.akb.requiredKwh) + " кВт·год" + (r.manualAkbUsed ? " (вручну)" : "");
       el("out-akbbank").textContent = r.akb.bank;
-      el("out-akbmodel").textContent = r.akb.model + (r.akb.manualModelUsed ? " (вручну)" : "");
+      el("out-akbmodel").textContent = r.akb.model;
       el("out-akbcount").textContent = r.akb.moduleCount + " шт" + (r.akb.manualModuleUsed ? " (вручну)" : "");
       el("in-manual-akbmodules").placeholder = "авто (" + r.akb.autoModuleCount + " шт)";
       el("out-akbtotal").textContent = fmtNum(r.akb.totalCapacityKwh) + " кВт·год";

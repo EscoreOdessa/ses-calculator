@@ -10,6 +10,18 @@ const SesStorage = (function () {
     return JSON.parse(JSON.stringify(obj));
   }
 
+  // constants — це суто "зашиті в код" налаштування розрахунку (частка
+  // дня/ночі, потужність панелі, націнки тощо). На вкладці «Дані» немає
+  // жодного поля для їх редагування, тому їм не можна дозволяти "застрягати"
+  // у старому localStorage/імпортованому JSON — інакше після оновлення коду
+  // (наприклад, потужність панелі 620 Вт -> 615 Вт) у користувачів зі
+  // старим збереженим станом і далі показуватиметься застаріле число.
+  // Завжди беремо constants виключно з поточного DEFAULT_DATA.
+  function withFreshConstants(data) {
+    data.constants = clone(DEFAULT_DATA.constants);
+    return data;
+  }
+
   function load() {
     try {
       const raw = localStorage.getItem(KEY);
@@ -17,7 +29,7 @@ const SesStorage = (function () {
       const parsed = JSON.parse(raw);
       // На випадок якщо в збереженому JSON бракує якогось розділу (наприклад,
       // після оновлення сайту з'явився новий розділ) — доповнюємо з DEFAULT_DATA.
-      return Object.assign(clone(DEFAULT_DATA), parsed);
+      return withFreshConstants(Object.assign(clone(DEFAULT_DATA), parsed));
     } catch (e) {
       console.error("Не вдалося прочитати збережені дані, використовую початкові.", e);
       return clone(DEFAULT_DATA);
@@ -55,7 +67,7 @@ const SesStorage = (function () {
     reader.onload = () => {
       try {
         const parsed = JSON.parse(reader.result);
-        const merged = Object.assign(clone(DEFAULT_DATA), parsed);
+        const merged = withFreshConstants(Object.assign(clone(DEFAULT_DATA), parsed));
         save(merged);
         onDone(null, merged);
       } catch (e) {
