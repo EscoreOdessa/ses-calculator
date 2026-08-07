@@ -92,71 +92,56 @@
     // збігається з inverterKw.
     result.inverterUnitKw = inverterKw === null ? null : (inverterModuleCount > 1 ? maxListKw : inverterKw);
 
-    // --- 3. Ціна станції за ключем вид|розташування|оплата|потужність (C22-C25) ---
-    const stationPowerKw = inverterKw; // C22 = C18
+    // --- 3. Ціна станції = сума компонентів (2026-08-07) ---
+    // Новий принцип: інвертор + панелі + АКБ + кріплення + матеріали + роботи
+    // + доставка. Ніякої «ціни за кВт». Панелі/АКБ/кріплення рахуються нижче
+    // (розділи 4-6), тут — інвертор і матеріали/роботи/доставка.
+    const stationPowerKw = inverterKw; // потужність станції = потужність інвертора
     result.stationPowerKw = stationPowerKw;
 
-    const priceRow = stationPowerKw === null ? null : data.prices.find(
-      (p) =>
-        p.type === input.stationType &&
-        p.location === input.location &&
-        p.vat === !!input.vat &&
-        p.power === stationPowerKw
-    );
-
-    let pricePerKw = null;
-    let stationPrice = null;
-    if (stationPowerKw === null) {
-      // Інвертор не заданий (equipment-режим, поле порожнє) — станцію не рахуємо взагалі.
-    } else if (priceRow) {
-      pricePerKw = priceRow.price;
-      stationPrice = stationPowerKw * pricePerKw; // C25 = C22*C23 (ціни в Дані вже фінальні, без додаткової націнки)
-    } else {
-      result.warnings.push("Немає ціни для цієї комбінації вид/розташування/оплата/потужність — уточнити у менеджера.");
-    }
-    // --- 3b. Поелементна ціна станції (тільки режим «Ручний ввід обладнання») ---
-    // Anna 2026-07-21: коли клієнт уже знає інвертор, рахуємо реальну ціну —
-    // конкретний інвертор із data.inverterPricesMesh/Hybrid + вартість
-    // матеріалів/робіт для цього розміру (priceRow.materialsLabor), а не
-    // орієнтовну бандл-ціну price×кВт. Якщо для цієї потужності/типу немає
-    // або ціни інвертора, або materialsLabor — тихо відкочуємось на бандл
-    // (без попередження менеджеру, рішення Anna).
-    let stationPriceSource = "bundle";
-    if (manualInverterUsed) {
-      // Ціну беремо за ОДИН фізичний блок (inverterUnitKw) і множимо на
-      // кількість блоків (inverterModuleCount) — коректно і для звичайного
-      // випадку (1 блок), і для паралелі гібридних блоків понад 50 кВт.
+    // 3a. Ціна інвертора: ціна за модель × кількість фізичних блоків
+    // (inverterModuleCount>1 — паралель однакових блоків максимального розміру).
+    let inverterPrice = null;
+    if (stationPowerKw !== null) {
       const inverterCatalog = isHybrid ? data.inverterPricesHybrid : data.inverterPricesMesh;
-      const inverterPriceRow = (inverterCatalog || []).find((r) => r.kw === result.inverterUnitKw);
-      const unitPrice = inverterPriceRow
-        ? (input.vat ? inverterPriceRow.priceVat : inverterPriceRow.priceNoVat)
-        : null;
-      const inverterUnitPrice = (unitPrice !== null && unitPrice !== undefined)
-        ? unitPrice * inverterModuleCount
-        : null;
-      const materialsLabor = priceRow ? priceRow.materialsLabor : null;
-
-      if (inverterUnitPrice !== null && inverterUnitPrice !== undefined &&
-          materialsLabor !== null && materialsLabor !== undefined) {
-        // "Тільки обладнання" — матеріали/роботи (послуга монтажу) в ціну
-        // станції не входять; сам інвертор — завжди (це товар).
-        stationPrice = inverterUnitPrice + (withInstallation ? materialsLabor : 0);
-        pricePerKw = stationPowerKw > 0 ? stationPrice / stationPowerKw : pricePerKw;
-        stationPriceSource = "itemized";
-        result.inverterUnitPrice = inverterUnitPrice;
-        // Завжди "сира" знайдена сума (для показу в UI), незалежно від того,
-        // чи додана вона в stationPrice — result.withInstallation каже, чи додана.
-        result.materialsLaborPrice = materialsLabor;
-      } else if (!withInstallation) {
-        // Немає окремих даних для розбивки (немає ціни інвертора або
-        // materialsLabor) — розділити на "тільки обладнання" нема з чого,
-        // лишається бандл-ціна (3.), яка вже включає монтаж.
-        result.warnings.push("Немає окремої ціни обладнання без монтажу для цієї потужності — показана орієнтовна ціна з монтажем.");
+      const invRow = (inverterCatalog || []).find((r) => r.kw === result.inverterUnitKw);
+      const unitPrice = invRow ? (input.vat ? invRow.priceVat : invRow.priceNoVat) : null;
+      if (unitPrice !== null && unitPrice !== undefined) {
+        inverterPrice = unitPrice * inverterModuleCount;
+      } else {
+        result.warnings.push("Немає ціни інвертора для цієї потужності — уточнити у менеджера.");
       }
     }
-    result.stationPriceSource = stationPriceSource;
-    result.pricePerKw = pricePerKw;
-    result.stationPrice = stationPrice;
+    result.inverterPrice = inverterPrice;
+
+    // 3b. Матеріали / роботи / доставка — з таблиці station за
+    // вид|розташування|оплата|потужність. Точний збіг за потужністю; якщо
+    // немає — найближчий розмір у межах того самого вид+розташування+оплата
+    // (напр. мережева 5 кВт, коли в таблиці лишили тільки 6 — не станеться,
+    // але захист на випадок неповних даних). Тільки "з монтажем": при
+    // "тільки обладнання" монтажні позиції в ціну не входять.
+    let materialsPrice = null, laborPrice = null, deliveryPrice = null;
+    if (stationPowerKw !== null && withInstallation) {
+      const pool = (data.station || []).filter(
+        (s) => s.type === input.stationType && s.location === input.location && s.vat === !!input.vat
+      );
+      let row = pool.find((s) => s.power === stationPowerKw);
+      if (!row && pool.length) {
+        row = pool.reduce((a, b) =>
+          Math.abs(b.power - stationPowerKw) < Math.abs(a.power - stationPowerKw) ? b : a
+        );
+      }
+      if (row) {
+        materialsPrice = row.materials;
+        laborPrice = row.labor;
+        deliveryPrice = row.delivery;
+      } else {
+        result.warnings.push("Немає матеріалів/робіт/доставки для цієї комбінації вид/розташування/оплата — уточнити у менеджера.");
+      }
+    }
+    result.materialsPrice = materialsPrice;
+    result.laborPrice = laborPrice;
+    result.deliveryPrice = deliveryPrice;
 
     // --- 4. Панелі (C42) ---
     // "consumption": як завжди, від потужності станції (інвертора).
@@ -308,7 +293,7 @@
     // свідомо пропущені (equipment-режим, поле порожнє), додають 0 без
     // попереджень — це вибір клієнта, не прогалина в даних.
     let total = null;
-    if (stationPrice !== null) {
+    if (inverterPrice !== null) {
       let akbPart = 0;
       if (isHybrid) {
         if (akb) {
@@ -320,7 +305,16 @@
         }
         // isEquipmentMode && !akb — клієнт свідомо не хоче АКБ, попередження не потрібне.
       }
-      total = stationPrice + (panelCost !== null ? panelCost : 0) + akbPart + (mountTotal !== null ? mountTotal : 0);
+      // Разом = сума компонентів: інвертор + панелі + АКБ + кріплення +
+      // матеріали + роботи + доставка (кожен доданок = 0, якщо розділу немає).
+      total =
+        inverterPrice +
+        (panelCost !== null ? panelCost : 0) +
+        akbPart +
+        (mountTotal !== null ? mountTotal : 0) +
+        (materialsPrice !== null ? materialsPrice : 0) +
+        (laborPrice !== null ? laborPrice : 0) +
+        (deliveryPrice !== null ? deliveryPrice : 0);
     }
     result.totalUsd = total;
     result.totalUah = total !== null && input.exchangeRate ? total * input.exchangeRate : null;

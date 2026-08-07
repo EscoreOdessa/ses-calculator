@@ -4,7 +4,10 @@
 // на інший комп'ютер або зробити резервну копію.
 
 const SesStorage = (function () {
-  const KEY = "ses_calculator_data_v1";
+  // v2 (2026-08-07): нова структура прайсу (station[] замість prices[], нові
+  // ціни інверторів/АКБ/панелей). Підняли версію ключа, щоб старий збережений
+  // localStorage не перекривав нові дані застарілими цінами.
+  const KEY = "ses_calculator_data_v2";
 
   function clone(obj) {
     return JSON.parse(JSON.stringify(obj));

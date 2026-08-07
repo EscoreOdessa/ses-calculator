@@ -102,7 +102,10 @@
       const data = getData();
       updateStatus();
 
-      // --- Ціни станцій ---
+      // --- Матеріали / роботи / доставка (за розміром станції) ---
+      // 2026-08-07: замість старої «Ціни станцій» ($/кВт). Ціна тепер = сума
+      // компонентів; тут — окремі суми матеріалів, робіт і доставки.
+      if (!data.station) data.station = [];
       renderTable(
         "dani-prices-table",
         [
@@ -110,19 +113,19 @@
           { key: "location", label: "Розташування", type: "select", opts: [["дах", "Дах"], ["земля", "Земля"]] },
           { key: "vat", label: "Оплата", type: "select", opts: [["true", "ПДВ"], ["false", ""]] },
           { key: "power", label: "Потужність, кВт", type: "number" },
-          { key: "price", label: "Ціна, $/кВт", type: "number" },
-          { key: "materialsLabor", label: "Матеріали+робота (сума, не за кВт), $", type: "number" },
+          { key: "materials", label: "Матеріали, $", type: "number" },
+          { key: "labor", label: "Роботи, $", type: "number" },
+          { key: "delivery", label: "Доставка, $", type: "number" },
         ],
-        data.prices,
+        data.station,
         (i, key, val) => {
-          if (key === "vat") data.prices[i][key] = val === "true";
-          else if (key === "materialsLabor") data.prices[i][key] = val === "" ? null : num(val);
-          else if (key === "power" || key === "price") data.prices[i][key] = num(val);
-          else data.prices[i][key] = val;
+          if (key === "vat") data.station[i][key] = val === "true";
+          else if (["power", "materials", "labor", "delivery"].includes(key)) data.station[i][key] = num(val);
+          else data.station[i][key] = val;
           onDataChanged();
         },
         (i) => {
-          data.prices.splice(i, 1);
+          data.station.splice(i, 1);
           renderAll();
           onDataChanged();
         }
@@ -285,7 +288,9 @@
 
     // --- Кнопки додавання рядків ---
     el("dani-add-price").addEventListener("click", () => {
-      getData().prices.push({ type: "мережева", location: "дах", vat: false, power: 50, price: 0 });
+      const d = getData();
+      if (!d.station) d.station = [];
+      d.station.push({ type: "мережева", location: "дах", vat: false, power: 10, materials: 0, labor: 0, delivery: 0 });
       renderAll();
       onDataChanged();
     });

@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Калькулятор СЕС — потужність і ціна</title>
-<link rel="stylesheet" href="style.css?v=20260805" />
+<link rel="stylesheet" href="style.css?v=20260807" />
 </head>
 <body>
 
@@ -156,12 +156,12 @@
         </select>
       </div>
       <div class="row" id="row-inverterprice"><span class="label">Ціна інвертора, $</span><span class="value" id="out-inverterprice"></span></div>
-      <div class="row" id="row-materialslabor"><span class="label">Матеріали та роботи, $</span><span class="value" id="out-materialslabor"></span></div>
-      <div class="row" style="display:none"><span class="label">Ціна за кВт (інвертор, матеріали, роботи), $</span><span class="value" id="out-priceperkw"></span></div>
-      <div class="row" id="row-stationprice"><span class="label">Станція, $</span><span class="value" id="out-stationprice"></span></div>
       <div class="row"><span class="label">Ціна панелі, $/Вт</span><span class="value" id="out-panelpricew"></span></div>
       <div class="row"><span class="label">Вартість панелей, $</span><span class="value" id="out-panelcost"></span></div>
       <div class="row" id="row-akbprice"><span class="label">Ціна комплекту АКБ, $</span><span class="value" id="out-akbprice"></span></div>
+      <div class="row" id="row-materials"><span class="label">Матеріали, $</span><span class="value" id="out-materials"></span></div>
+      <div class="row" id="row-labor"><span class="label">Роботи, $</span><span class="value" id="out-labor"></span></div>
+      <div class="row" id="row-delivery"><span class="label">Доставка, $</span><span class="value" id="out-delivery"></span></div>
     </div>
 
     <div class="card" id="card-mount">
@@ -194,8 +194,8 @@
     </div>
 
     <div class="card">
-      <h2>Ціни станцій (вид / розташування / оплата / потужність → $/кВт)</h2>
-      <p class="hint">Колонка «Матеріали+робота» — загальна сума (не за кВт!) для «Ручний ввід обладнання»: інвертор (нижче) + ця сума замінюють орієнтовну $/кВт, коли менеджер вручну задає потужність інвертора.</p>
+      <h2>Матеріали / роботи / доставка (за розміром станції)</h2>
+      <p class="hint">Окремі суми $ під кожен розмір станції (вид / розташування / оплата / потужність). Ціна станції = інвертор + панелі + АКБ + кріплення + матеріали + роботи + доставка.</p>
       <table class="dani-table" id="dani-prices-table"></table>
       <button class="btn" id="dani-add-price">+ Додати рядок</button>
     </div>
@@ -220,7 +220,7 @@
 
     <div class="card">
       <h2>Ціни інверторів (для «Ручний ввід обладнання»)</h2>
-      <p class="hint">Ціна конкретного інвертора + рядок «Матеріали+робота» вище використовуються замість орієнтовної $/кВт, коли менеджер вручну задає потужність інвертора. Потужність (кВт) має збігатись зі списком інверторів вище.</p>
+      <p class="hint">Ціна за модель інвертора (з ПДВ / без ПДВ). Потужність (кВт) має збігатись зі списком інверторів вище.</p>
       <h3>Мережеві — SolaX Power</h3>
       <table class="dani-table" id="dani-inv-mesh-price-table"></table>
       <button class="btn" id="dani-add-inv-mesh-price">+ Додати рядок</button>
@@ -379,17 +379,17 @@
 
 </main>
 
-<script src="data.js?v=20260805"></script>
-<script src="calculator.js?v=20260805"></script>
-<script src="storage.js?v=20260805"></script>
-<script src="geometry.js?v=20260805"></script>
-<script src="maps-loader.js?v=20260805"></script>
-<script src="app.js?v=20260805"></script>
-<script src="dani.js?v=20260805"></script>
-<script src="logo.js?v=20260805"></script>
-<script src="panels.js?v=20260805"></script>
-<script src="production.js?v=20260805"></script>
-<script src="kp.js?v=20260805"></script>
-<script src="assistant.js?v=20260805"></script>
+<script src="data.js?v=20260807"></script>
+<script src="calculator.js?v=20260807"></script>
+<script src="storage.js?v=20260807"></script>
+<script src="geometry.js?v=20260807"></script>
+<script src="maps-loader.js?v=20260807"></script>
+<script src="app.js?v=20260807"></script>
+<script src="dani.js?v=20260807"></script>
+<script src="logo.js?v=20260807"></script>
+<script src="panels.js?v=20260807"></script>
+<script src="production.js?v=20260807"></script>
+<script src="kp.js?v=20260807"></script>
+<script src="assistant.js?v=20260807"></script>
 </body>
 </html>

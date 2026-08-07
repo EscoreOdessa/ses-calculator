@@ -93,10 +93,8 @@
     el("field-manual-akb").style.display = isHybrid ? "" : "none";
     // "Комплектація" (з монтажем / тільки обладнання) має сенс тільки в equipment-режимі.
     el("field-install").style.display = isEquipment ? "" : "none";
-    el("row-inverterprice").style.display = isEquipment ? "" : "none";
-    el("row-materialslabor").style.display = isEquipment ? "" : "none";
-    // "Станція, $" дублює "Ціна інвертора"+"Матеріали та роботи" в equipment-режимі — ховаємо там.
-    el("row-stationprice").style.display = isEquipment ? "none" : "";
+    // 2026-08-07: ціна = сума компонентів. Рядки «Ціна інвертора / Матеріали /
+    // Роботи / Доставка» показуються завжди (не тільки в equipment-режимі).
 
     const r = SesCalc.calculate(input, currentData);
     lastResult = r;
@@ -131,18 +129,18 @@
       ? `${r.panelCount} шт × ${r.panelWattage} Вт ≈ ${fmtNum(r.panelTotalKw)} кВт` + (r.manualPanelUsed ? " (вручну)" : "")
       : "— (клієнт не хоче панелі)";
 
-    el("out-inverterprice").textContent = (r.inverterUnitPrice !== null && r.inverterUnitPrice !== undefined) ? fmtUsd(r.inverterUnitPrice) : "—";
-    if (r.materialsLaborPrice === null || r.materialsLaborPrice === undefined) {
-      el("out-materialslabor").textContent = "—";
-    } else if (!r.withInstallation) {
-      el("out-materialslabor").textContent = "не враховано (тільки обладнання)";
-    } else {
-      el("out-materialslabor").textContent = fmtUsd(r.materialsLaborPrice);
-    }
-    el("out-priceperkw").textContent = r.pricePerKw !== null ? fmtUsd(r.pricePerKw) : "уточнити у менеджера";
-    el("out-stationprice").textContent = r.stationPrice !== null ? fmtUsd(r.stationPrice) : "уточнити у менеджера";
-    el("out-panelpricew").textContent = r.panelPricePerW !== null ? "$" + r.panelPricePerW.toFixed(2) : "—";
+    el("out-inverterprice").textContent = (r.inverterPrice !== null && r.inverterPrice !== undefined) ? fmtUsd(r.inverterPrice) : "уточнити у менеджера";
+    el("out-panelpricew").textContent = r.panelPricePerW !== null ? "$" + r.panelPricePerW.toFixed(4) : "—";
     el("out-panelcost").textContent = r.panelCost !== null ? fmtUsd(r.panelCost) : "—";
+
+    // Матеріали / роботи / доставка — окремі рядки розбивки (2026-08-07).
+    // null при "тільки обладнання" (монтажні позиції не входять).
+    const instTxt = (v) => (v !== null && v !== undefined)
+      ? fmtUsd(v)
+      : (r.withInstallation ? "—" : "не враховано (тільки обладнання)");
+    el("out-materials").textContent = instTxt(r.materialsPrice);
+    el("out-labor").textContent = instTxt(r.laborPrice);
+    el("out-delivery").textContent = instTxt(r.deliveryPrice);
 
     if (isHybrid && r.akb) {
       el("out-akbreq").textContent = fmtNum(r.akb.requiredKwh) + " кВт·год" + (r.manualAkbUsed ? " (вручну)" : "");

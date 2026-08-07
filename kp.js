@@ -127,11 +127,13 @@
         }
       }
 
+      // 2026-08-07: ціна = сума компонентів. Розбивка: інвертор + панелі +
+      // АКБ + кріплення + матеріали + роботи + доставка.
       totalBody.appendChild(sectionRow("Орієнтовна вартість"));
       totalBody.appendChild(
         row(
-          isEquipment ? "Інвертор, $" : "Станція, $",
-          r.stationPrice !== null ? fmtUsd(r.stationPrice).replace("$", "") : "—"
+          "Інвертор, $",
+          (r.inverterPrice !== null && r.inverterPrice !== undefined) ? fmtUsd(r.inverterPrice).replace("$", "") : "—"
         )
       );
       if (r.panelCount) {
@@ -151,6 +153,15 @@
         } else {
           totalBody.appendChild(row("Кріплення", "уточнити у менеджера"));
         }
+      }
+      if (r.materialsPrice !== null && r.materialsPrice !== undefined) {
+        totalBody.appendChild(row("Матеріали, $", fmtUsd(r.materialsPrice).replace("$", "")));
+      }
+      if (r.laborPrice !== null && r.laborPrice !== undefined) {
+        totalBody.appendChild(row("Роботи, $", fmtUsd(r.laborPrice).replace("$", "")));
+      }
+      if (r.deliveryPrice !== null && r.deliveryPrice !== undefined) {
+        totalBody.appendChild(row("Доставка, $", fmtUsd(r.deliveryPrice).replace("$", "")));
       }
 
       const totalRow = row("РАЗОМ, $", r.totalUsd !== null ? fmtUsd(r.totalUsd).replace("$", "") : "уточнити у менеджера");
